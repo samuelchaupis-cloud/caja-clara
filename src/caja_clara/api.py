@@ -2,16 +2,17 @@
 API REST para consumo de datos financieros de CajaClara.
 Construida con FastAPI y protegida por API Key.
 """
-from fastapi import FastAPI, Depends, HTTPException, Security
+from typing import Any
+
+from fastapi import Depends, FastAPI, HTTPException, Security
 from fastapi.security.api_key import APIKeyHeader
 from sqlalchemy.orm import Session
-from typing import List, Dict, Any
 from starlette.status import HTTP_403_FORBIDDEN
 
-from caja_clara.database import get_db
-from caja_clara.models import InvoiceRecord
 from caja_clara.cli_monitor import get_status_data
 from caja_clara.config import config
+from caja_clara.database import get_db
+from caja_clara.models import InvoiceRecord
 
 API_KEY_NAME = "X-API-Key"
 api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
@@ -31,7 +32,7 @@ app = FastAPI(
 )
 
 @app.get("/")
-def read_root() -> Dict[str, str]:
+def read_root() -> dict[str, str]:
     return {"status": "ok", "service": "caja-clara-api"}
 
 @app.get("/api/v1/invoices", dependencies=[Depends(get_api_key)])
@@ -53,7 +54,7 @@ def get_invoice_by_message_id(message_id: str, db: Session = Depends(get_db)):
     return record
 
 @app.get("/api/v1/metrics", dependencies=[Depends(get_api_key)])
-def get_metrics() -> Dict[str, Any]:
+def get_metrics() -> dict[str, Any]:
     """Devuelve el estado de salud y métricas del demonio."""
     data = get_status_data()
     if not data:

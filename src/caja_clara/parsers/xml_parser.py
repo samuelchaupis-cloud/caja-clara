@@ -1,9 +1,10 @@
 """
 Extractor de datos estructurados para Facturas Electrónicas XML (UBL estándar).
 """
+from datetime import datetime
+
 import structlog
 from lxml import etree
-from datetime import datetime
 
 logger = structlog.get_logger()
 

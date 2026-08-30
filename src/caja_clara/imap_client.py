@@ -5,10 +5,11 @@ IMAP Client for connecting and interacting with mail servers securely.
 Cliente IMAP con resiliencia, verificación TLS estricta y soporte IDLE.
 """
 import ssl
-from typing import Generator
-from imap_tools import MailBox, A, MailMessage
-from tenacity import retry, stop_after_attempt, wait_exponential, wait_random
+from collections.abc import Generator
+
 import structlog
+from imap_tools import A, MailBox, MailMessage
+from tenacity import retry, stop_after_attempt, wait_exponential, wait_random
 
 from caja_clara.config import config
 

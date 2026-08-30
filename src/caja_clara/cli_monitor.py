@@ -4,6 +4,7 @@ CLI Dashboard para monitorear el estado de CajaClara.
 import json
 import os
 import time
+from typing import Any
 
 from rich import box
 from rich.layout import Layout
@@ -12,12 +13,10 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from typing import Dict, Any, Optional
-
 STATUS_FILE = "/var/lib/cajaclarad/status.json"
 FALLBACK_STATUS_FILE = "status.json"
 
-def get_status_data() -> Optional[Dict[str, Any]]:
+def get_status_data() -> dict[str, Any] | None:
     """Lee el archivo status.json de forma segura."""
     path = STATUS_FILE if os.path.exists(STATUS_FILE) else FALLBACK_STATUS_FILE
     if not os.path.exists(path):
@@ -86,10 +85,12 @@ def generate_dashboard() -> Layout:
 
 import argparse
 import csv
-from datetime import UTC
+
 from sqlalchemy.orm import Session
+
 from caja_clara.database import SessionLocal
 from caja_clara.models import InvoiceRecord
+
 
 def export_to_csv(output_file: str = "facturas.csv") -> None:
     """Exporta los registros procesados a un archivo CSV."""

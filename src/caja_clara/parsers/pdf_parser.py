@@ -4,11 +4,12 @@ Utiliza pdfplumber para extracción de texto crudo y heurísticas regex (prepara
 """
 import io
 import re
-import structlog
 from datetime import datetime
-import pdfplumber
 
+import pdfplumber
+import structlog
 from google import genai
+
 from caja_clara.config import config
 from caja_clara.schemas import InvoiceExtraction
 
@@ -59,7 +60,7 @@ def parse_pdf_invoice(pdf_content: bytes) -> dict:
                 llm_dict = json.loads(response.text)
                 
                 # Mapear datos (parseando la fecha si aplica)
-                for k in result.keys():
+                for k in result:
                     if k == "issue_date" and llm_dict.get(k):
                         try:
                             result[k] = datetime.strptime(llm_dict[k], "%Y-%m-%d")

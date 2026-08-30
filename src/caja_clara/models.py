@@ -4,16 +4,17 @@ SQLAlchemy models for CajaClara.
 from __future__ import annotations
 
 from datetime import datetime
+
 from sqlalchemy import (
     Boolean,
     Column,
     DateTime,
+    Float,
     Integer,
     String,
-    Float,
     func,
 )
-from sqlalchemy.orm import declarative_base, Mapped, mapped_column
+from sqlalchemy.orm import Mapped, declarative_base, mapped_column
 
 Base = declarative_base()
 

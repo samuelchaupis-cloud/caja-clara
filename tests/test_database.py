@@ -1,7 +1,6 @@
 from datetime import UTC, datetime
 
 import pytest
-from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
 from caja_clara.database import verify_db_integrity

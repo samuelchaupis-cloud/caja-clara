@@ -14,6 +14,7 @@ from caja_clara.constants import (
     MAX_SUBJECT_LENGTH,
 )
 
+
 class InvoiceExtraction(BaseModel):
     """Esquema de salida estructurada (Structured Output) para que el LLM devuelva JSON puro."""
     issuer_id: str | None = Field(default=None, description="RUC, NIT, RFC o Identificador Fiscal del emisor de la factura. Solo los números.")

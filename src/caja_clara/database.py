@@ -3,14 +3,14 @@ Database connection and session management.
 """
 from __future__ import annotations
 
-import logging
 import sqlite3
 from collections.abc import Generator
 
+import structlog
 from sqlalchemy import create_engine, event, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
-import structlog
+
 from caja_clara.config import config
 
 logger = structlog.get_logger()

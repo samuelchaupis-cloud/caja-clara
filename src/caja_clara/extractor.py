@@ -3,14 +3,13 @@ Pipeline for email extraction and data sanitization.
 """
 import hashlib
 from datetime import UTC, datetime
-from email.utils import parsedate_to_datetime
 from typing import Any
 
 import structlog
 from imap_tools import MailMessage
 from pydantic import ValidationError
 
-from caja_clara.constants import ALLOWED_ATTACHMENT_EXTENSIONS, MAX_ATTACHMENT_SIZE_BYTES
+from caja_clara.constants import ALLOWED_ATTACHMENT_EXTENSIONS
 from caja_clara.parsers.pdf_parser import parse_pdf_invoice
 from caja_clara.parsers.xml_parser import parse_xml_invoice
 from caja_clara.schemas import EmailExtract
