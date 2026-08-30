@@ -1,0 +1,17 @@
+# Caddyfile para CajaClara SaaS
+# Caddy gestionará automáticamente los certificados SSL/HTTPS para el dominio que configures.
+
+# Reemplaza 'api.tudominio.com' por tu dominio real o IP pública en producción.
+# Si usas una IP pública temporalmente sin dominio, usa la IP directamente y Caddy usará HTTP local.
+{$DOMAIN:localhost} {
+    # Redirige todo el tráfico web hacia nuestra API de FastAPI
+    reverse_proxy api:8000
+    
+    # Cabeceras de seguridad básicas
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Xss-Protection "1; mode=block"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+    }
+}

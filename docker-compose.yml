@@ -12,7 +12,6 @@ services:
     env_file:
       - .env
     environment:
-      # Sobreescribe la ruta de la BD para que viva en el volumen persistente
       - CAJACLARAD_DB_PATH=/app/data/cajaclarad.db
     logging:
       driver: "json-file"
@@ -26,10 +25,14 @@ services:
     container_name: caja_clara_api
     restart: unless-stopped
     command: uv run uvicorn caja_clara.api:app --host 0.0.0.0 --port 8000
-    ports:
-      - "8000:8000"
+    # NOTA: Ya no exponemos el puerto 8000 directamente al host por seguridad.
+    # El proxy Caddy se encargará de enrutar el tráfico hacia aquí de forma segura.
+    expose:
+      - "8000"
     volumes:
       - caja_clara_data:/app/data
+    env_file:
+      - .env
     environment:
       - CAJACLARAD_DB_PATH=/app/data/cajaclarad.db
     depends_on:
@@ -40,6 +43,27 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # Proxy Inverso Seguro (Auto HTTPS)
+  caddy:
+    image: caddy:2.8-alpine
+    container_name: caja_clara_proxy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+    environment:
+      - DOMAIN=${DOMAIN:-localhost}
+
 volumes:
   caja_clara_data:
     name: caja_clara_db_volume
+  caddy_data:
+    name: caja_clara_caddy_data
+  caddy_config:
+    name: caja_clara_caddy_config
