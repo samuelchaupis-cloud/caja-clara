@@ -1,0 +1,45 @@
+version: "3.8"
+
+services:
+  # El demonio (worker principal que procesa correos)
+  cajaclarad:
+    build: .
+    container_name: caja_clara_daemon
+    restart: unless-stopped
+    command: uv run cajaclarad
+    volumes:
+      - caja_clara_data:/app/data
+    env_file:
+      - .env
+    environment:
+      # Sobreescribe la ruta de la BD para que viva en el volumen persistente
+      - CAJACLARAD_DB_PATH=/app/data/cajaclarad.db
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # La API REST (para consumir los datos desde el ERP)
+  api:
+    build: .
+    container_name: caja_clara_api
+    restart: unless-stopped
+    command: uv run uvicorn caja_clara.api:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    volumes:
+      - caja_clara_data:/app/data
+    environment:
+      - CAJACLARAD_DB_PATH=/app/data/cajaclarad.db
+    depends_on:
+      - cajaclarad
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  caja_clara_data:
+    name: caja_clara_db_volume

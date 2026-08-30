@@ -19,6 +19,8 @@ dependencies = [
     "pdfplumber>=0.11.10",
     "pypdf>=6.16.2",
     "google-genai>=2.20.0",
+    "fastapi>=0.141.1",
+    "uvicorn>=0.52.4",
 ]
 
 [project.scripts]
