@@ -26,13 +26,19 @@ shutdown_event = threading.Event()
 
 # Metrics
 state = {
-    "pid": os.getpid(),
     "start_time": time.time(),
-    "last_successful_cycle": None,
     "emails_processed_total": 0,
     "emails_errored_total": 0,
+    "last_successful_cycle": None,
+    "db_size_bytes": 0,
     "imap_connection_status": "disconnected"
 }
+
+# Inicializar métricas globales
+startup_time = datetime.now(UTC)
+emails_processed = 0
+emails_errored = 0
+last_success = None
 
 def _handle_signal(signum: int, frame: Any) -> None:
     """Manejador de señales de sistema para apagar el demonio limpiamente."""
@@ -154,11 +160,11 @@ def process_mailbox(client: IMAPClient) -> None:
 
     except Exception as e:
         logger.error("error_ciclo_general", error=str(e))
+        state["imap_connection_status"] = "error"
+        raise e
     finally:
         client.logout()
         db_session.close()
-        state["imap_connection_status"] = "error"
-        raise
 
 def main():
     """Main entrypoint for the daemon."""

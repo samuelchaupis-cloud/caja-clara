@@ -1,5 +1,5 @@
 from unittest.mock import MagicMock, patch
-
+import pytest
 from caja_clara.imap_client import IMAPClient
 
 

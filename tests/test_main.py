@@ -7,9 +7,11 @@ from sqlalchemy.exc import IntegrityError
 from caja_clara.main import _handle_signal, process_mailbox, shutdown_event, write_status_file
 
 
+@patch("caja_clara.main.config")
 @patch("caja_clara.main.os.replace")
-def test_write_status_file(mock_replace):
+def test_write_status_file(mock_replace, mock_config):
     """Test metrics are written atomically to status.json."""
+    mock_config.db_path = "dummy.db"
     write_status_file()
     mock_replace.assert_called_once()
     # Check that a tmp file was created

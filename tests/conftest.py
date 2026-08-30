@@ -6,6 +6,7 @@ import os
 # Inyectamos variables obligatorias ANTES de importar módulos que cargan config.py
 os.environ["CAJACLARAD_IMAP_HOST"] = "test.imap.com"
 os.environ["CAJACLARAD_IMAP_USER"] = "test@user.com"
+os.environ["CAJACLARAD_IMAP_PASSWORD"] = "dummy_pass"
 os.environ["CAJACLARAD_DB_PATH"] = ":memory:"
 
 import pytest

@@ -5,7 +5,7 @@ import os
 import re
 from datetime import datetime
 
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from caja_clara.constants import (
     ALLOWED_ATTACHMENT_EXTENSIONS,
@@ -14,6 +14,16 @@ from caja_clara.constants import (
     MAX_SUBJECT_LENGTH,
 )
 
+class InvoiceExtraction(BaseModel):
+    """Esquema de salida estructurada (Structured Output) para que el LLM devuelva JSON puro."""
+    issuer_id: str | None = Field(default=None, description="RUC, NIT, RFC o Identificador Fiscal del emisor de la factura. Solo los números.")
+    issuer_name: str | None = Field(default=None, description="Razón social o nombre de la empresa que emite la factura.")
+    invoice_number: str | None = Field(default=None, description="Número de la factura, comprobante o folio (ejemplo: F001-00123).")
+    issue_date: str | None = Field(default=None, description="Fecha de emisión en formato YYYY-MM-DD.")
+    currency: str | None = Field(default=None, description="Código de moneda de 3 letras (ejemplo: PEN, USD, MXN).")
+    subtotal: float | None = Field(default=None, description="Monto neto antes de impuestos. Solo número float.")
+    tax_amount: float | None = Field(default=None, description="Monto de los impuestos (IGV, IVA, etc). Solo número float.")
+    total_amount: float | None = Field(default=None, description="Monto total a pagar incluyendo impuestos. Solo número float.")
 
 class EmailExtract(BaseModel):
     """Schema for validating and sanitizing extracted email data before database insertion."""
