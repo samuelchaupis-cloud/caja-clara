@@ -20,6 +20,9 @@ class Settings(BaseSettings):
 
     # Base de datos
     db_path: str = Field(default="cajaclarad.db", description="Ruta a la BD SQLite", alias="CAJACLARAD_DB_PATH")
+    
+    # Seguridad de la API REST
+    api_key: str = Field(default="dev-secret-key", description="Llave maestra para acceder a la API", alias="CAJACLARAD_API_KEY")
     poll_interval: int = Field(default=120, alias="CAJACLARAD_POLL_INTERVAL", ge=10)
     log_level: str = Field(default="INFO", alias="CAJACLARAD_LOG_LEVEL")
 
