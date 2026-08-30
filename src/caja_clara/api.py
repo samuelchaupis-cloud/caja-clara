@@ -2,10 +2,12 @@
 API REST para consumo de datos financieros de CajaClara.
 Construida con FastAPI y protegida por API Key.
 """
+import os
 from typing import Any
 
-from fastapi import Depends, FastAPI, HTTPException, Security
+from fastapi import Depends, FastAPI, HTTPException, Security, Request
 from fastapi.security.api_key import APIKeyHeader
+from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from starlette.status import HTTP_403_FORBIDDEN
 
@@ -31,7 +33,25 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# Configurar templates usando ruta absoluta para que funcione desde cualquier CWD
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
+
 @app.get("/")
+def get_dashboard(request: Request, db: Session = Depends(get_db)):
+    """Renderiza el Dashboard Visual B2B."""
+    metrics = get_status_data() or {}
+    invoices = db.query(InvoiceRecord).order_by(InvoiceRecord.received_date.desc()).limit(100).all()
+    return templates.TemplateResponse(
+        request=request,
+        name="dashboard.html",
+        context={
+            "metrics": metrics,
+            "invoices": invoices
+        }
+    )
+
+@app.get("/health")
 def read_root() -> dict[str, str]:
     return {"status": "ok", "service": "caja-clara-api"}
 

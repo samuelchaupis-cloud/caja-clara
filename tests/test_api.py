@@ -7,10 +7,18 @@ from caja_clara.database import get_db
 client = TestClient(app)
 
 def test_read_root():
-    """El root endpoint debe ser público para validación de salud."""
-    response = client.get("/")
+    """El root endpoint de health debe ser público para validación de salud."""
+    response = client.get("/health")
     assert response.status_code == 200
     assert response.json() == {"status": "ok", "service": "caja-clara-api"}
+
+def test_get_dashboard(db_session):
+    """El dashboard debe renderizar correctamente HTML público."""
+    app.dependency_overrides[get_db] = lambda: db_session
+    response = client.get("/")
+    assert response.status_code == 200
+    assert "text/html" in response.headers.get("content-type", "")
+    app.dependency_overrides.clear()
 
 def test_get_invoices_no_api_key():
     """Debe rechazar peticiones sin la cabecera X-API-Key."""

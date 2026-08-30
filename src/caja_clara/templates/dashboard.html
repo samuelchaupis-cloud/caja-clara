@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CajaClara | Dashboard Visual</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Space Grotesk', 'sans-serif'],
+                    },
+                    colors: {
+                        caja: {
+                            bg: '#09090b',
+                            card: '#18181b',
+                            accent: '#00ff9d',
+                            accentMuted: 'rgba(0, 255, 157, 0.1)',
+                            error: '#ff3366',
+                            text: '#f4f4f5',
+                            muted: '#a1a1aa'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: theme('colors.caja.bg');
+            color: theme('colors.caja.text');
+            -webkit-font-smoothing: antialiased;
+        }
+        .table-row-hover:hover {
+            background-color: rgba(255, 255, 255, 0.02);
+        }
+    </style>
+</head>
+<body class="min-h-screen p-6 md:p-12">
+    
+    <header class="mb-16 border-b border-white/10 pb-6 flex items-center justify-between">
+        <div>
+            <h1 class="text-3xl font-display font-bold text-white tracking-tight">CajaClara</h1>
+            <p class="text-sm text-caja-muted mt-1 font-sans">Pipeline de Extracción y Conciliación</p>
+        </div>
+        <div class="px-4 py-1.5 rounded-full bg-caja-accentMuted border border-caja-accent/20 text-caja-accent text-sm font-medium flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-caja-accent shadow-[0_0_8px_#00ff9d]"></span>
+            Sistema Activo
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto space-y-12">
+        
+        <!-- Metrics Section -->
+        <section class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="bg-caja-card border border-white/5 p-8 rounded-2xl relative overflow-hidden group">
+                <div class="absolute top-0 right-0 w-32 h-32 bg-caja-accent/5 rounded-full blur-3xl -mr-16 -mt-16 transition-all group-hover:bg-caja-accent/10"></div>
+                <h3 class="text-caja-muted text-sm font-medium mb-3 tracking-wide uppercase">Total Facturas</h3>
+                <p class="text-6xl font-display font-bold text-white">{{ metrics.get('emails_processed_total', 0) }}</p>
+            </div>
+            
+            <div class="bg-caja-card border border-white/5 p-8 rounded-2xl relative overflow-hidden group">
+                <div class="absolute top-0 right-0 w-32 h-32 bg-caja-error/5 rounded-full blur-3xl -mr-16 -mt-16 transition-all group-hover:bg-caja-error/10"></div>
+                <h3 class="text-caja-muted text-sm font-medium mb-3 tracking-wide uppercase">Errores</h3>
+                <p class="text-6xl font-display font-bold text-caja-error">{{ metrics.get('emails_errored_total', 0) }}</p>
+            </div>
+
+            <div class="bg-caja-card border border-white/5 p-8 rounded-2xl relative overflow-hidden">
+                <h3 class="text-caja-muted text-sm font-medium mb-3 tracking-wide uppercase">Estado Interno</h3>
+                <p class="text-xl font-display font-medium text-white mt-4">
+                    {% if metrics.get('last_successful_cycle') %}
+                        Sync: {{ metrics.get('last_successful_cycle')[:16].replace('T', ' ') }}
+                    {% else %}
+                        Sync: Pendiente
+                    {% endif %}
+                </p>
+                <p class="text-sm text-caja-muted mt-2">Storage: {{ (metrics.get('db_size_bytes', 0) / 1024)|round(1) }} KB</p>
+            </div>
+        </section>
+
+        <!-- Table Section -->
+        <section>
+            <h2 class="text-xl font-display font-bold mb-6 text-white">Registro de Operaciones</h2>
+            <div class="bg-caja-card border border-white/5 rounded-2xl overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm whitespace-nowrap">
+                        <thead class="bg-white/[0.02] border-b border-white/5 text-caja-muted font-medium">
+                            <tr>
+                                <th class="px-6 py-4">Fecha</th>
+                                <th class="px-6 py-4">Remitente</th>
+                                <th class="px-6 py-4">Monto</th>
+                                <th class="px-6 py-4">Moneda</th>
+                                <th class="px-6 py-4">Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-white/5">
+                            {% for inv in invoices %}
+                            <tr class="table-row-hover transition-colors">
+                                <td class="px-6 py-4 text-caja-muted">{{ inv.received_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td class="px-6 py-4 font-medium text-white">{{ inv.sender_email }}</td>
+                                <td class="px-6 py-4 font-display text-white">
+                                    {% if inv.total_amount %}
+                                        {{ "%.2f"|format(inv.total_amount) }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td class="px-6 py-4 text-caja-muted">{{ inv.currency or '-' }}</td>
+                                <td class="px-6 py-4">
+                                    {% if inv.status == 'PROCESSED' %}
+                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-caja-accentMuted text-caja-accent border border-caja-accent/20">
+                                            Procesado
+                                        </span>
+                                    {% elif inv.status == 'ERROR' %}
+                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-500/10 text-caja-error border border-caja-error/20">
+                                            Error
+                                        </span>
+                                    {% else %}
+                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-white/5 text-caja-muted border border-white/10">
+                                            {{ inv.status }}
+                                        </span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="px-6 py-16 text-center text-caja-muted">
+                                    No hay operaciones registradas todavía.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+</body>
+</html>
