@@ -17,7 +17,7 @@ logger = structlog.get_logger()
 
 engine = create_engine(
     f"sqlite:///{config.db_path}",
-    connect_args={"timeout": 15},
+    connect_args={"timeout": 30},
     pool_pre_ping=True,
 )
 
@@ -27,7 +27,7 @@ def set_sqlite_pragmas(dbapi_connection: sqlite3.Connection, connection_record: 
     """Configura los pragmas de SQLite para concurrencia WAL."""
     cursor = dbapi_connection.cursor()
     cursor.execute("PRAGMA journal_mode=WAL")
-    cursor.execute("PRAGMA busy_timeout=5000")
+    cursor.execute("PRAGMA busy_timeout=30000")
     cursor.execute("PRAGMA foreign_keys=ON")
     cursor.execute("PRAGMA synchronous=NORMAL")
     cursor.close()

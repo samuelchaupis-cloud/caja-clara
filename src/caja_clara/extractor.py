@@ -45,6 +45,12 @@ def extract_email_data(msg: MailMessage, mailbox_account: str) -> tuple[EmailExt
                 if att.filename and any(att.filename.lower().endswith(ext) for ext in ALLOWED_ATTACHMENT_EXTENSIONS):
                     attachment_filename = att.filename
                     attachment_size_bytes = len(att.payload)
+                    
+                    # Prevención de DoS (Límite 5MB)
+                    if attachment_size_bytes > 5 * 1024 * 1024:
+                        logger.warning("adjunto_ignorado_por_exceso_tamano", filename=attachment_filename, size=attachment_size_bytes)
+                        return None, "Adjunto excede el límite seguro de 5MB (DoS Protection)"
+                    
                     attachment_hash = hash_attachment(att.payload)
                     
                     # Fase 3: Extraer datos del documento

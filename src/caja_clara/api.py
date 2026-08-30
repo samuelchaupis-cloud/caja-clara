@@ -3,6 +3,7 @@ API REST para consumo de datos financieros de CajaClara.
 Construida con FastAPI y protegida por API Key.
 """
 import os
+import secrets
 from typing import Any
 
 from fastapi import Depends, FastAPI, HTTPException, Security, Request
@@ -21,7 +22,7 @@ api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
 
 def get_api_key(api_key: str = Security(api_key_header)) -> str:
     """Valida que la petición incluya el API Key correcto."""
-    if api_key == config.api_key:
+    if api_key and secrets.compare_digest(api_key, config.api_key):
         return api_key
     raise HTTPException(
         status_code=HTTP_403_FORBIDDEN, detail="Acceso denegado: API Key inválida o faltante"
