@@ -1,0 +1,14 @@
+.interview_notes/
+.agents/
+.env
+.venv
+__pycache__/
+*.db
+*.sqlite
+*.sqlite3
+*.log
+*.pyc
+.ruff_cache/
+htmlcov/
+.coverage
+dist/
