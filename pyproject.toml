@@ -13,10 +13,13 @@ dependencies = [
     "structlog>=24.4.0",
     "tenacity>=9.0.0",
     "charset-normalizer>=3.3.2",
+    "sdnotify>=0.3.2",
+    "rich>=15.0.0",
 ]
 
 [project.scripts]
 cajaclarad = "caja_clara.main:main"
+caja-monitor = "caja_clara.cli_monitor:main"
 
 [tool.uv]
 dev-dependencies = [

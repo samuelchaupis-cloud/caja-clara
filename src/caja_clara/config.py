@@ -11,7 +11,8 @@ class Settings(BaseSettings):
     imap_host: str = Field(..., alias="CAJACLARAD_IMAP_HOST")
     imap_port: int = Field(default=993, alias="CAJACLARAD_IMAP_PORT")
     imap_user: str = Field(..., alias="CAJACLARAD_IMAP_USER")
-    imap_password: str = Field(..., alias="CAJACLARAD_IMAP_PASSWORD")
+    imap_password: str | None = Field(default=None, alias="CAJACLARAD_IMAP_PASSWORD")
+    imap_oauth2_token: str | None = Field(default=None, alias="CAJACLARAD_IMAP_OAUTH2_TOKEN")
     
     db_path: str = Field(..., alias="CAJACLARAD_DB_PATH")
     poll_interval: int = Field(default=120, alias="CAJACLARAD_POLL_INTERVAL", ge=10)

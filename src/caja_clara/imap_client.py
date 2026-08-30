@@ -39,7 +39,15 @@ class IMAPClient:
         self._mailbox = MailBox(
             self._host, port=self._port, timeout=30, ssl_context=ctx
         )
-        self._mailbox.login(self._user, self._password)
+        if config.imap_oauth2_token:
+            # Autenticación moderna XOAUTH2 para proveedores cloud
+            logger.info("Autenticando vía XOAUTH2...")
+            self._mailbox.xoauth2(self._user, config.imap_oauth2_token)
+        elif self._password:
+            self._mailbox.login(self._user, self._password)
+        else:
+            raise ValueError("No password or oauth2 token provided")
+            
         logger.info("Autenticación IMAP exitosa.")
 
     def fetch_unseen(self) -> Generator[MailMessage, None, None]:
@@ -54,6 +62,25 @@ class IMAPClient:
         # mark_seen=False is critical to guarantee idempotency in case of crashes
         for msg in self._mailbox.fetch(A(seen=False), mark_seen=False):
             yield msg
+
+    def wait_for_new_messages(self, timeout: int = 60) -> bool:
+        """
+        Bloquea usando IMAP IDLE hasta recibir un nuevo evento.
+        Retorna True si hay eventos, False si el timeout expiró.
+        Hace fallback elegante si el servidor no soporta IDLE.
+        """
+        if not self._mailbox:
+            raise RuntimeError("Not connected to IMAP.")
+        
+        try:
+            logger.debug("Entrando en estado IDLE...")
+            responses = self._mailbox.idle.wait(timeout=timeout)
+            return bool(responses)
+        except Exception as e:
+            logger.warning(f"Error en IMAP IDLE (fallback a polling): {e}")
+            import time
+            time.sleep(timeout)
+            return True
 
     def mark_seen(self, uid: str) -> None:
         """Mark a specific message as read."""

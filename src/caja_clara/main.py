@@ -10,6 +10,7 @@ import threading
 import time
 from datetime import UTC, datetime
 
+import sdnotify
 import structlog
 from sqlalchemy.exc import IntegrityError
 
@@ -82,9 +83,27 @@ def process_mailbox(client: IMAPClient):
             db_session.begin_nested()
             try:
                 if extract:
-                    record = InvoiceRecord(**extract.model_dump())
-                    db_session.add(record)
-                    status_log = "PROCESSED"
+                    # Fase 2.2: Verificación de deduplicación por attachment_hash
+                    duplicate = False
+                    if extract.attachment_hash:
+                        existing = db_session.query(InvoiceRecord).filter_by(
+                            attachment_hash=extract.attachment_hash
+                        ).first()
+                        if existing:
+                            duplicate = True
+                            
+                    if duplicate:
+                        # Se registra pero con estado DUPLICATE para tener trazabilidad
+                        record = InvoiceRecord(**extract.model_dump())
+                        record.status = "DUPLICATE"
+                        record.error_detail = "Factura ya ingresada previamente (hash duplicado)"
+                        db_session.add(record)
+                        status_log = "DUPLICATE"
+                    else:
+                        # Flujo normal
+                        record = InvoiceRecord(**extract.model_dump())
+                        db_session.add(record)
+                        status_log = "PROCESSED"
                 else:
                     record = InvoiceRecord(
                         message_id=msg.headers.get("message-id", (f"<{msg.uid}@unknown>",))[0],
@@ -150,6 +169,8 @@ def main():
         sys.exit(1)
 
     client = IMAPClient()
+    notifier = sdnotify.SystemdNotifier()
+    notifier.notify("READY=1")
 
     while not shutdown_event.is_set():
         try:
@@ -158,7 +179,14 @@ def main():
             pass # Already logged inside process_mailbox
         
         write_status_file()
-        shutdown_event.wait(timeout=config.poll_interval)
+        notifier.notify("WATCHDOG=1")
+        
+        # Fase 2.4: Usar IDLE para esperar eventos (o sleep si falla)
+        # El timeout lo combinamos con poll_interval para despertar el watchdog
+        try:
+            client.wait_for_new_messages(timeout=config.poll_interval)
+        except Exception:
+            shutdown_event.wait(timeout=config.poll_interval)
 
     # Clean shutdown sequence
     logger.info("apagado_iniciado")
