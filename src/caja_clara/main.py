@@ -9,6 +9,7 @@ import sys
 import threading
 import time
 from datetime import UTC, datetime
+from typing import Any
 
 import sdnotify
 import structlog

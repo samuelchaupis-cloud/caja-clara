@@ -1,6 +1,8 @@
 """
 CLI Dashboard para monitorear el estado de CajaClara.
 """
+import argparse
+import csv
 import json
 import os
 import time
@@ -12,6 +14,10 @@ from rich.live import Live
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
+from sqlalchemy.orm import Session
+
+from caja_clara.database import SessionLocal
+from caja_clara.models import InvoiceRecord
 
 STATUS_FILE = "/var/lib/cajaclarad/status.json"
 FALLBACK_STATUS_FILE = "status.json"
@@ -61,7 +67,8 @@ def generate_dashboard() -> Layout:
     metrics_table.add_column("Valor")
     
     metrics_table.add_row("Correos Procesados", Text(str(data.get("emails_processed_total", 0)), style="green"))
-    metrics_table.add_row("Errores de Extracción", Text(str(data.get("emails_errored_total", 0)), style="red" if data.get("emails_errored_total", 0) > 0 else "dim"))
+    err_count = data.get("emails_errored_total", 0)
+    metrics_table.add_row("Errores de Extracción", Text(str(err_count), style="red" if err_count > 0 else "dim"))
     metrics_table.add_row("Último Ciclo Exitoso", str(data.get("last_successful_cycle", "N/A")))
     metrics_table.add_row("Tamaño de Base de Datos", format_bytes(data.get("db_size_bytes", 0)))
     
@@ -82,15 +89,6 @@ def generate_dashboard() -> Layout:
     layout["status"].update(Panel(status_table, title="Estado del Sistema"))
 
     return layout
-
-import argparse
-import csv
-
-from sqlalchemy.orm import Session
-
-from caja_clara.database import SessionLocal
-from caja_clara.models import InvoiceRecord
-
 
 def export_to_csv(output_file: str = "facturas.csv") -> None:
     """Exporta los registros procesados a un archivo CSV."""

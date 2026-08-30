@@ -1,8 +1,5 @@
 """
-IMAP Client for connecting and interacting with mail servers securely.
-"""
-"""
-Cliente IMAP con resiliencia, verificación TLS estricta y soporte IDLE.
+Cliente IMAP con resiliencia, verificación TLS estricta y soporte IDLE para conectar e interactuar con servidores de correo de forma segura.
 """
 import ssl
 from collections.abc import Generator
