@@ -28,6 +28,16 @@ class EmailExtract(BaseModel):
     attachment_filename: str | None = None
     attachment_hash: str | None = None
     attachment_size_bytes: int | None = None
+    
+    # Fase 3: Variables Financieras (opcionales, se llenan si el extractor las encuentra)
+    issuer_id: str | None = None
+    issuer_name: str | None = None
+    invoice_number: str | None = None
+    issue_date: datetime | None = None
+    currency: str | None = Field(default=None, max_length=10)
+    subtotal: float | None = None
+    tax_amount: float | None = None
+    total_amount: float | None = None
 
     @field_validator("sender_email", mode="before")
     @classmethod

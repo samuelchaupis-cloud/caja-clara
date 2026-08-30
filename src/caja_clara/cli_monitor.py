@@ -84,8 +84,57 @@ def generate_dashboard() -> Layout:
 
     return layout
 
+import argparse
+import csv
+from datetime import UTC
+from sqlalchemy.orm import Session
+from caja_clara.database import SessionLocal
+from caja_clara.models import InvoiceRecord
+
+def export_to_csv(output_file: str = "facturas.csv") -> None:
+    """Exporta los registros procesados a un archivo CSV."""
+    db: Session = SessionLocal()
+    try:
+        records = db.query(InvoiceRecord).filter_by(status="PROCESSED").all()
+        if not records:
+            print("No hay facturas procesadas para exportar.")
+            return
+
+        with open(output_file, mode="w", newline="", encoding="utf-8") as file:
+            writer = csv.writer(file)
+            # Escribir cabeceras
+            writer.writerow([
+                "ID_Mensaje", "Fecha_Recepcion", "RUC_Emisor", "Razon_Social", 
+                "Folio_Factura", "Fecha_Emision", "Moneda", "Subtotal", "IGV", "Total"
+            ])
+            
+            for r in records:
+                writer.writerow([
+                    r.message_id,
+                    r.received_date.isoformat() if r.received_date else "",
+                    r.issuer_id or "",
+                    r.issuer_name or "",
+                    r.invoice_number or "",
+                    r.issue_date.isoformat() if r.issue_date else "",
+                    r.currency or "",
+                    r.subtotal or 0.0,
+                    r.tax_amount or 0.0,
+                    r.total_amount or 0.0
+                ])
+        print(f"Exportación exitosa. {len(records)} facturas guardadas en {output_file}.")
+    finally:
+        db.close()
+
 def main() -> None:
     """Bucle principal de la interfaz CLI."""
+    parser = argparse.ArgumentParser(description="Monitor y herramientas para CajaClara")
+    parser.add_argument("--export", type=str, metavar="FILE.csv", help="Exporta los datos a un archivo CSV")
+    args = parser.parse_args()
+
+    if args.export:
+        export_to_csv(args.export)
+        return
+
     with Live(generate_dashboard(), refresh_per_second=1) as live:
         try:
             while True:

@@ -3,12 +3,19 @@ Pipeline for email extraction and data sanitization.
 """
 import hashlib
 from datetime import UTC, datetime
+from email.utils import parsedate_to_datetime
 from typing import Any
 
+import structlog
 from imap_tools import MailMessage
 from pydantic import ValidationError
 
+from caja_clara.constants import ALLOWED_ATTACHMENT_EXTENSIONS, MAX_ATTACHMENT_SIZE_BYTES
+from caja_clara.parsers.pdf_parser import parse_pdf_invoice
+from caja_clara.parsers.xml_parser import parse_xml_invoice
 from caja_clara.schemas import EmailExtract
+
+logger = structlog.get_logger()
 
 
 def hash_attachment(payload: bytes) -> str:
@@ -31,15 +38,30 @@ def extract_email_data(msg: MailMessage, mailbox_account: str) -> tuple[EmailExt
         attachment_hash = None
         attachment_size_bytes = None
         
+        raw_data: dict[str, Any] = {}
+        
         if has_attachments:
-            # For simplicity, we process the first attachment in this iteration
-            att = msg.attachments[0]
-            attachment_filename = att.filename
-            attachment_size_bytes = len(att.payload)
-            attachment_hash = hash_attachment(att.payload)
+            # Seleccionar el primer adjunto válido según su extensión
+            for att in msg.attachments:
+                if att.filename and any(att.filename.lower().endswith(ext) for ext in ALLOWED_ATTACHMENT_EXTENSIONS):
+                    attachment_filename = att.filename
+                    attachment_size_bytes = len(att.payload)
+                    attachment_hash = hash_attachment(att.payload)
+                    
+                    # Fase 3: Extraer datos del documento
+                    parsed_data = {}
+                    if attachment_filename.lower().endswith(".xml"):
+                        parsed_data = parse_xml_invoice(att.payload)
+                    elif attachment_filename.lower().endswith(".pdf"):
+                        parsed_data = parse_pdf_invoice(att.payload)
+                        
+                    for k, v in parsed_data.items():
+                        if v is not None:
+                            raw_data[k] = v
+                    break
 
-        # Build raw dict
-        raw_data: dict[str, Any] = {
+        # Completar el diccionario raw
+        raw_data.update({
             "message_id": msg.headers.get("message-id", (f"<{msg.uid}@unknown>",))[0],
             "imap_uid": msg.uid,
             "mailbox_account": mailbox_account,
@@ -50,7 +72,7 @@ def extract_email_data(msg: MailMessage, mailbox_account: str) -> tuple[EmailExt
             "attachment_filename": attachment_filename,
             "attachment_hash": attachment_hash,
             "attachment_size_bytes": attachment_size_bytes,
-        }
+        })
         
         validated = EmailExtract(**raw_data)
         return validated, None
