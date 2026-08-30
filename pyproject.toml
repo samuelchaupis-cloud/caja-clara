@@ -1,0 +1,35 @@
+[project]
+name = "caja-clara"
+version = "0.1.0"
+description = "Daemon de extracción de facturas IMAP"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "imap-tools>=1.7.0",
+    "sqlalchemy>=2.0.35",
+    "alembic>=1.13.3",
+    "pydantic[email]>=2.9.2",
+    "pydantic-settings>=2.5.2",
+    "structlog>=24.4.0",
+    "tenacity>=9.0.0",
+    "charset-normalizer>=3.3.2",
+]
+
+[project.scripts]
+cajaclarad = "caja_clara.main:main"
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=8.3.3",
+    "pytest-cov>=5.0.0",
+    "ruff>=0.6.9",
+    "bandit>=1.7.10",
+]
+
+[tool.ruff]
+line-length = 99
+target-version = "py312"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
