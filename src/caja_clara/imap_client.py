@@ -1,20 +1,22 @@
 """
 IMAP Client for connecting and interacting with mail servers securely.
 """
-import logging
+"""
+Cliente IMAP con resiliencia, verificación TLS estricta y soporte IDLE.
+"""
 import ssl
-from collections.abc import Generator
-
-from imap_tools import A, MailBox, MailMessage
+from typing import Generator
+from imap_tools import MailBox, A, MailMessage
 from tenacity import retry, stop_after_attempt, wait_exponential, wait_random
+import structlog
 
 from caja_clara.config import config
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 
 class IMAPClient:
-    def __init__(self):
+    def __init__(self) -> None:
         self._host = config.imap_host
         self._port = config.imap_port
         self._user = config.imap_user
@@ -27,11 +29,11 @@ class IMAPClient:
         reraise=True,
     )
     def connect(self) -> None:
-        """Establish an IMAP connection with verified TLS."""
-        logger.info("Conectando a IMAP...", host=self._host, port=self._port)
-        
-        # TLS Certificate Verification is MANDATORY.
-        # NEVER use ssl.CERT_NONE or check_hostname=False in production.
+        """Establece una conexión IMAP segura con verificación TLS obligatoria."""
+        logger.info("intentando_conexion_imap", host=self._host, port=self._port)
+
+        # La verificación de certificado TLS es OBLIGATORIA.
+        # NUNCA deshabilitar check_hostname ni usar CERT_NONE en producción.
         ctx = ssl.create_default_context()
         
         # connect args
@@ -41,25 +43,24 @@ class IMAPClient:
         )
         if config.imap_oauth2_token:
             # Autenticación moderna XOAUTH2 para proveedores cloud
-            logger.info("Autenticando vía XOAUTH2...")
+            logger.info("autenticando_via_xoauth2")
             self._mailbox.xoauth2(self._user, config.imap_oauth2_token)
         elif self._password:
             self._mailbox.login(self._user, self._password)
         else:
-            raise ValueError("No password or oauth2 token provided")
+            raise ValueError("No se proveyó password ni token oauth2")
             
-        logger.info("Autenticación IMAP exitosa.")
+        logger.info("autenticacion_imap_exitosa")
 
     def fetch_unseen(self) -> Generator[MailMessage, None, None]:
-        """Fetch unread emails without marking them as read initially."""
+        """Generador que produce mensajes de correo no leídos."""
         if not self._mailbox:
-            raise RuntimeError("Not connected to IMAP.")
+            raise RuntimeError("No hay conexión IMAP establecida.")
         
-        logger.debug("Buscando correos no leídos (UNSEEN)...")
         # Ensure connection is alive before fetching
         self._mailbox.client.noop()
         
-        # mark_seen=False is critical to guarantee idempotency in case of crashes
+        # mark_seen=False es crítico para garantizar idempotencia en caso de crashes
         for msg in self._mailbox.fetch(A(seen=False), mark_seen=False):
             yield msg
 
@@ -70,32 +71,32 @@ class IMAPClient:
         Hace fallback elegante si el servidor no soporta IDLE.
         """
         if not self._mailbox:
-            raise RuntimeError("Not connected to IMAP.")
+            raise RuntimeError("No hay conexión IMAP establecida.")
         
         try:
-            logger.debug("Entrando en estado IDLE...")
+            logger.debug("entrando_estado_idle")
             responses = self._mailbox.idle.wait(timeout=timeout)
             return bool(responses)
         except Exception as e:
-            logger.warning(f"Error en IMAP IDLE (fallback a polling): {e}")
+            logger.warning("error_imap_idle_fallback", error=str(e))
             import time
             time.sleep(timeout)
             return True
 
     def mark_seen(self, uid: str) -> None:
-        """Mark a specific message as read."""
+        """Marca un mensaje específico como leído."""
         if not self._mailbox:
-            raise RuntimeError("Not connected to IMAP.")
+            raise RuntimeError("No hay conexión IMAP establecida.")
         self._mailbox.flag(uid, ["\\Seen"], True)
-        logger.debug(f"Mensaje {uid} marcado como leído.")
+        logger.debug("mensaje_marcado_leido", uid=uid)
 
     def logout(self) -> None:
-        """Cleanly close the IMAP connection."""
+        """Cierra la conexión al servidor IMAP de forma segura."""
         if self._mailbox:
             try:
                 self._mailbox.logout()
             except Exception as e:
-                logger.warning(f"Error durante IMAP logout: {e}")
+                logger.warning("error_durante_logout_imap", error=str(e))
             finally:
                 self._mailbox = None
                 logger.info("Conexión IMAP cerrada.")

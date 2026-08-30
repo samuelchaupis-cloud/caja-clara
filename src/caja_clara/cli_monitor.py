@@ -12,10 +12,12 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
+from typing import Dict, Any, Optional
+
 STATUS_FILE = "/var/lib/cajaclarad/status.json"
 FALLBACK_STATUS_FILE = "status.json"
 
-def get_status_data():
+def get_status_data() -> Optional[Dict[str, Any]]:
     """Lee el archivo status.json de forma segura."""
     path = STATUS_FILE if os.path.exists(STATUS_FILE) else FALLBACK_STATUS_FILE
     if not os.path.exists(path):
@@ -26,12 +28,13 @@ def get_status_data():
     except Exception:
         return None
 
-def format_bytes(size):
+def format_bytes(size: float) -> str:
     """Formatea bytes a KB/MB."""
     for unit in ['B', 'KB', 'MB', 'GB']:
         if size < 1024.0:
             return f"{size:3.1f} {unit}"
         size /= 1024.0
+    return f"{size:3.1f} TB"
 
 def generate_dashboard() -> Layout:
     """Genera el layout visual con los datos actuales."""
@@ -50,10 +53,10 @@ def generate_dashboard() -> Layout:
         Layout(name="status", ratio=1)
     )
 
-    # Header
+    # Cabecera
     layout["header"].update(Panel(Text("CajaClara Daemon Monitor", justify="center", style="bold cyan")))
 
-    # Metrics Table
+    # Tabla de métricas
     metrics_table = Table(box=box.SIMPLE, show_header=False)
     metrics_table.add_column("Métrica", style="bold")
     metrics_table.add_column("Valor")
@@ -65,7 +68,7 @@ def generate_dashboard() -> Layout:
     
     layout["metrics"].update(Panel(metrics_table, title="Rendimiento"))
 
-    # Status Table
+    # Tabla de estado
     status_table = Table(box=box.SIMPLE, show_header=False)
     status_table.add_column("Componente", style="bold")
     status_table.add_column("Estado")
@@ -81,7 +84,7 @@ def generate_dashboard() -> Layout:
 
     return layout
 
-def main():
+def main() -> None:
     """Bucle principal de la interfaz CLI."""
     with Live(generate_dashboard(), refresh_per_second=1) as live:
         try:

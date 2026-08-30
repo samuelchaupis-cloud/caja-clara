@@ -7,40 +7,37 @@ import logging
 import sqlite3
 from collections.abc import Generator
 
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, event, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
+import structlog
+from caja_clara.config import config
 
-logger = logging.getLogger(__name__)
-
-# Note: The actual path should be loaded from config, but for Alembic and early
-# initialization, we provide a default that config.py will override.
-DB_URL = "sqlite:///./cajaclarad.db"
+logger = structlog.get_logger()
 
 engine = create_engine(
-    DB_URL,
+    f"sqlite:///{config.db_path}",
     connect_args={"timeout": 15},
     pool_pre_ping=True,
 )
 
 
-@event.listens_for(Engine, "connect")
+@event.listens_for(engine, "connect")
 def set_sqlite_pragmas(dbapi_connection: sqlite3.Connection, connection_record: object) -> None:
-    """Sets necessary PRAGMAs for SQLite on every connection."""
-    if type(dbapi_connection) is sqlite3.Connection:
-        cursor = dbapi_connection.cursor()
-        cursor.execute("PRAGMA journal_mode=WAL")
-        cursor.execute("PRAGMA busy_timeout=5000")
-        cursor.execute("PRAGMA foreign_keys=ON")
-        cursor.execute("PRAGMA synchronous=NORMAL")
-        cursor.close()
+    """Configura los pragmas de SQLite para concurrencia WAL."""
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA journal_mode=WAL")
+    cursor.execute("PRAGMA busy_timeout=5000")
+    cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.execute("PRAGMA synchronous=NORMAL")
+    cursor.close()
 
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, expire_on_commit=False)
 
 
 def get_db() -> Generator[Session, None, None]:
-    """Provide a transactional scope around a series of operations."""
+    """Generador que provee sesiones de base de datos seguras."""
     db = SessionLocal()
     try:
         yield db
@@ -48,20 +45,17 @@ def get_db() -> Generator[Session, None, None]:
         db.close()
 
 
-from sqlalchemy import text
-
-
 def verify_db_integrity(db_engine: Engine) -> None:
-    """Check SQLite database integrity."""
+    """Ejecuta chequeo de integridad en SQLite y aborta si está corrupta."""
     with db_engine.connect() as conn:
         result = conn.execute(text("PRAGMA integrity_check")).scalar()
         if result != "ok":
-            logger.critical(f"Database integrity check failed: {result}")
-            raise RuntimeError("Database corruption detected")
+            logger.critical("falla_integridad_bd", details=result)
+            raise RuntimeError(f"Base de datos corrupta: {result}")
 
 
 def verify_schema_version(db_engine: Engine) -> None:
-    """Verify Alembic schema version matches expected head."""
+    """Verifica que la versión de esquema de base de datos coincida con el código."""
     from alembic.config import Config
     from alembic.migration import MigrationContext
     from alembic.script import ScriptDirectory

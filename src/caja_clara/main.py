@@ -34,27 +34,33 @@ state = {
     "imap_connection_status": "disconnected"
 }
 
-def _handle_signal(signum, frame):
-    """Handle termination signals gracefully."""
-    logger.info("señal_recibida", signal=signal.Signals(signum).name)
+def _handle_signal(signum: int, frame: Any) -> None:
+    """Manejador de señales de sistema para apagar el demonio limpiamente."""
+    logger.info("senal_recibida", signum=signal.Signals(signum).name)
     shutdown_event.set()
 
-def write_status_file():
-    """Write metrics atomically to status.json."""
-    state["uptime_seconds"] = int(time.time() - state["start_time"])
+def write_status_file() -> None:
+    """Escribe el archivo de estado de métricas en formato JSON de forma atómica."""
+    global startup_time, emails_processed, emails_errored, last_success
+
+    status_path = config.db_path.replace("cajaclarad.db", "status.json")
+    tmp_path = status_path + ".tmp"
+    
     try:
         db_size = os.path.getsize(config.db_path) if os.path.exists(config.db_path) else 0
     except Exception:
         db_size = 0
-        
-    state["db_size_bytes"] = db_size
 
-    status_path = "/var/lib/cajaclarad/status.json"
-    if not os.path.exists("/var/lib/cajaclarad"):
-        # local dev fallback
-        status_path = "status.json"
+    state = {
+        "pid": os.getpid(),
+        "uptime_seconds": (datetime.now(UTC) - startup_time).total_seconds(),
+        "last_successful_cycle": last_success.isoformat() if last_success else None,
+        "emails_processed_total": emails_processed,
+        "emails_errored_total": emails_errored,
+        "imap_connection_status": "connected", # Simplificado para Fase 1
+        "db_size_bytes": db_size
+    }
 
-    tmp_path = f"{status_path}.tmp"
     try:
         with open(tmp_path, "w") as f:
             json.dump(state, f)
@@ -62,24 +68,28 @@ def write_status_file():
     except Exception as e:
         logger.warning("error_escribiendo_status", error=str(e))
 
-def process_mailbox(client: IMAPClient):
-    """Fetch unread emails, extract, validate, and store."""
+def process_mailbox(client: IMAPClient) -> None:
+    """Ejecuta una iteración completa: conecta a IMAP, procesa no leídos y escribe a BD."""
+    global emails_processed, emails_errored, last_success
+    
     try:
-        if not client._mailbox:
-            client.connect()
-            state["imap_connection_status"] = "connected"
+        client.connect()
+    except Exception as e:
+        logger.error("error_conexion_imap", error=str(e))
+        return
 
-        db_gen = get_db()
-        db_session = next(db_gen)
-        
+    db_generator = get_db()
+    db_session = next(db_generator)
+
+    try:
         for msg in client.fetch_unseen():
             if shutdown_event.is_set():
                 break
 
-            start_t = time.time()
+            logger.info("procesando_correo", uid=msg.uid, subject=msg.subject)
             extract, err = extract_email_data(msg, config.imap_user)
             
-            # Start database transaction
+            # Iniciar transacción de base de datos
             db_session.begin_nested()
             try:
                 if extract:
@@ -107,34 +117,30 @@ def process_mailbox(client: IMAPClient):
                 else:
                     record = InvoiceRecord(
                         message_id=msg.headers.get("message-id", (f"<{msg.uid}@unknown>",))[0],
-                        imap_uid=msg.uid,
+                        imap_uid=int(msg.uid),
                         mailbox_account=config.imap_user,
                         sender_email=msg.from_ or "unknown",
                         received_date=msg.date or datetime.now(UTC),
+                        subject=msg.subject[:255] if msg.subject else "",
+                        has_attachments=bool(msg.attachments),
                         status="ERROR",
                         error_detail=err
                     )
                     db_session.add(record)
                     status_log = "ERROR"
-                    state["emails_errored_total"] += 1
                 
                 db_session.commit()
-                # If commit succeeds, mark as seen in IMAP
                 client.mark_seen(msg.uid)
                 
-                if extract:
-                    state["emails_processed_total"] += 1
-
-                logger.info(
-                    "correo_procesado",
-                    message_id=record.message_id,
-                    sender_email=record.sender_email,
-                    status=status_log,
-                    duration_ms=int((time.time() - start_t) * 1000)
-                )
+                if status_log == "PROCESSED":
+                    emails_processed += 1
+                elif status_log == "ERROR":
+                    emails_errored += 1
+                    
+                logger.info("correo_guardado_bd", uid=msg.uid, status=status_log)
 
             except IntegrityError:
-                # Deduplication logic: duplicate message_id
+                # Violación de Constraint Unique (El message_id ya existe)
                 db_session.rollback()
                 client.mark_seen(msg.uid)
                 logger.debug("correo_duplicado_ignorado", uid=msg.uid)
@@ -142,14 +148,15 @@ def process_mailbox(client: IMAPClient):
             except Exception as e:
                 db_session.rollback()
                 logger.error("error_procesando_correo", uid=msg.uid, error=str(e))
-                # Do not mark as seen. It will be retried.
-        
-        # Final commit for the cycle
+
         db_session.commit()
-        state["last_successful_cycle"] = datetime.now(UTC).isoformat()
-        
+        last_success = datetime.now(UTC)
+
     except Exception as e:
-        logger.error("error_ciclo_principal", error=str(e))
+        logger.error("error_ciclo_general", error=str(e))
+    finally:
+        client.logout()
+        db_session.close()
         state["imap_connection_status"] = "error"
         raise
 
