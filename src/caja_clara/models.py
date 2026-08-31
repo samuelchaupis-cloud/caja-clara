@@ -11,6 +11,7 @@ from sqlalchemy import (
     Boolean,
     Column,
     DateTime,
+    Index,
     Integer,
     Numeric,
     String,
@@ -71,5 +72,8 @@ class OutboxEvent(Base):
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="PENDING", index=True)
     retry_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.now(), index=True)
+    next_retry_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, index=True)
     processed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     error_detail: Mapped[str | None] = mapped_column(String, nullable=True)
+
+    __table_args__ = (Index("ix_outbox_events_dispatch", "status", "next_retry_at", "id"),)

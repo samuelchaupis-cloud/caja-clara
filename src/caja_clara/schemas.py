@@ -109,6 +109,7 @@ class OutboxEventCreate(BaseModel):
 
     event_type: str
     payload: dict[str, Any]
+    next_retry_at: datetime | None = None
 
 
 class OutboxEventResponse(BaseModel):
@@ -120,6 +121,7 @@ class OutboxEventResponse(BaseModel):
     status: str
     retry_count: int
     created_at: datetime
+    next_retry_at: datetime | None = None
     processed_at: datetime | None = None
     error_detail: str | None = None
 

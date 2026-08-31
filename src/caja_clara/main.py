@@ -19,6 +19,7 @@ from sqlalchemy.exc import IntegrityError
 from caja_clara.config import config
 from caja_clara.database import engine, get_db, verify_db_integrity, verify_schema_version
 from caja_clara.extractor import extract_email_data
+from caja_clara.fiscal_alerts import build_canonical_erp_payload, evaluate_fiscal_alerts
 from caja_clara.imap_client import IMAPClient
 from caja_clara.logging_config import setup_logging
 from caja_clara.metrics import IMAP_CONNECTION_STATUS, INVOICES_TOTAL
@@ -122,14 +123,19 @@ def process_mailbox(client: IMAPClient) -> None:
                         record = InvoiceRecord(**extract.model_dump())
                         db_session.add(record)
 
-                        # Patrón Transactional Outbox: Evento atómico en la misma transacción
-                        payload_dict = extract.model_dump(mode="json") if hasattr(extract, "model_dump") else dict(extract)
+                        # Patrón Transactional Outbox: Evento con Esquema Canónico ERP v1
+                        canonical_payload = build_canonical_erp_payload(record)
                         outbox_event = OutboxEvent(
                             event_type="invoice.processed",
-                            payload=json.dumps(payload_dict, default=str),
+                            payload=json.dumps(canonical_payload, default=str),
                             status="PENDING",
                         )
                         db_session.add(outbox_event)
+
+                        # Evaluar y registrar alertas fiscales (CDR rechazado / Detracciones SPOT)
+                        for alert_event in evaluate_fiscal_alerts(record):
+                            db_session.add(alert_event)
+
                         status_log = "PROCESSED"
                 else:
                     record = InvoiceRecord(

@@ -1,6 +1,6 @@
 # Task Plan: CajaClara — Plataforma Fiscal y Concurrencia Enterprise
 
-**Estado General:** Fase 7 y Fase 8 completadas al 100% (60 tests en verde, 85.80% de cobertura real sin mocks).
+**Estado General:** Fases 7, 8 y 9 completadas al 100% (71 tests en verde, 85.49% de cobertura real sin mocks).
 
 ---
 
@@ -21,22 +21,26 @@
 ---
 
 ### ✅ Fase 8: Hardening de Concurrencia, Observabilidad Prometheus & Transactional Outbox (COMPLETADA)
-
-#### Bloque 1: Hardening de Dominio Fiscal & Concurrencia Nuclear (Pases 1-4)
 - [x] **Detracciones SPOT Precisas:** Refinar selector XPath en `xml_parser.py` para aislar `PaymentTerms` de detracción (`cbc:ID = 'Detraccion'`) y extraer porcentaje `PaymentPercent` (eliminando falsos positivos con cuotas a crédito).
 - [x] **Concurrencia SQLite `BEGIN IMMEDIATE`:** Configurar listener en `database.py` para forzar `BEGIN IMMEDIATE` en escrituras y erradicar deadlocks `SQLITE_BUSY` (Protocolo 4.2).
 - [x] **Índices de Rendimiento:** Añadir `index=True` a la columna `attachment_hash` en `models.py`.
 - [x] **Aislamiento y Timeout LLM:** Incorporar timeout explícito en la llamada de Gemini en `pdf_parser.py`.
 - [x] **Contención de Memoria Systemd:** Añadir `MemoryMax=45M` y `MemoryHigh=40M` en `deploy/cajaclarad.service`.
-
-#### Bloque 2: Observabilidad Prometheus, Trazabilidad & Privacidad PII (Pases 5 y 7)
 - [x] **Módulo de Métricas:** Crear `src/caja_clara/metrics.py` e integrar `prometheus-client` (`cajaclara_invoices_total`, latencias, estado IMAP).
 - [x] **Endpoint `/metrics`:** Exponer `/metrics` en `api.py` con formato OpenMetrics.
 - [x] **Hardening PII:** Actualizar `redact_pii` en `logging_config.py` para ofuscar universalmente RUCs/emails sin bypass de DEBUG.
-
-#### Bloque 3: Resiliencia Cloud (Litestream) & Webhooks Outbox (Pases 6, 8, 9 y 10)
 - [x] **Configuración Litestream:** Crear `deploy/litestream.yml` para streaming continuo de SQLite WAL a Cloudflare R2 / S3.
 - [x] **Modelo y Tabla Outbox:** Añadir `OutboxEvent` en `models.py` y `schemas.py`.
 - [x] **Persistencia Atómica:** Registrar eventos outbox en la misma transacción (`BEGIN IMMEDIATE`) de `InvoiceRecord` en `main.py`.
 - [x] **Firma HMAC-SHA256:** Crear helper criptográfico para firmas `X-CajaClara-Signature` con timestamp anti-replay.
 - [x] **Suite de Pruebas y Quality Gates:** Cobertura $\ge 85\%$ con tests para métricas, outbox y detracciones en SQLite `:memory:`.
+
+---
+
+### ✅ Fase 9: Outbox Dispatcher Asíncrono, Alertas Fiscales Proactivas y Hardening de Contenedores (COMPLETADA)
+- [x] **Evolución del Modelo Outbox:** Añadir `next_retry_at` e índice compuesto `ix_outbox_events_dispatch` sobre `(status, next_retry_at, id)` en `models.py` y `schemas.py`.
+- [x] **Módulo de Alertas Fiscales:** Implementar `fiscal_alerts.py` con esquema canónico ERP v1 y detección de anomalías (`fiscal.alert.cdr_rejected` y `fiscal.alert.spot_discrepancy`).
+- [x] **Outbox Dispatcher Worker:** Desarrollar `src/caja_clara/dispatcher.py` con sondeo asíncrono no bloqueante, semáforo de concurrencia (`max_concurrent=5`), `httpx.AsyncClient`, backoff exponencial con jitter y clasificación de errores HTTP (2xx, 4xx, 5xx, DLQ).
+- [x] **Observabilidad del Despacho:** Instrumentar métricas Prometheus (`OUTBOX_DELIVERY_DURATION_SECONDS`, `OUTBOX_DELIVERY_RETRIES_TOTAL`, `OUTBOX_EVENTS_TOTAL`, `FISCAL_ALERTS_TOTAL`).
+- [x] **Hardening de Contenedores:** Configurar `Dockerfile` con usuario no privilegiado `appuser:10001`, orquestar servicio `dispatcher` en `docker-compose.yml` (`read_only: true`, `security_opt: [no-new-privileges:true]`, `cap_drop: [ALL]`, Cgroups 45MB) y crear `deploy/cajaclara-dispatcher.service`.
+- [x] **Suite de Pruebas y Quality Gates:** 71 pruebas aprobadas (100% verde), 85.49% de cobertura real en `sqlite:///:memory:`.

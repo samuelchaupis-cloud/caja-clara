@@ -7,26 +7,71 @@ services:
     container_name: caja_clara_daemon
     restart: unless-stopped
     command: uv run cajaclarad
+    user: "10001:10001"
+    security_opt:
+      - no-new-privileges:true
     volumes:
       - caja_clara_data:/app/data
     env_file:
       - .env
     environment:
       - CAJACLARAD_DB_PATH=/app/data/cajaclarad.db
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 45M
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
 
-  # La API REST (para consumir los datos desde el ERP)
+  # Worker Despachador de Eventos Transaccionales (Outbox Pattern)
+  dispatcher:
+    build: .
+    container_name: caja_clara_dispatcher
+    restart: unless-stopped
+    command: uv run cajaclara-dispatcher
+    user: "10001:10001"
+    read_only: true
+    tmpfs:
+      - /tmp:size=10M,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - caja_clara_data:/app/data
+    env_file:
+      - .env
+    environment:
+      - CAJACLARAD_DB_PATH=/app/data/cajaclarad.db
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 45M
+        reservations:
+          cpus: "0.10"
+          memory: 20M
+    depends_on:
+      - cajaclarad
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # La API REST (para consumir los datos desde el ERP y Dashboard)
   api:
     build: .
     container_name: caja_clara_api
     restart: unless-stopped
     command: uv run uvicorn caja_clara.api:app --host 0.0.0.0 --port 8000
-    # NOTA: Ya no exponemos el puerto 8000 directamente al host por seguridad.
-    # El proxy Caddy se encargará de enrutar el tráfico hacia aquí de forma segura.
+    user: "10001:10001"
+    security_opt:
+      - no-new-privileges:true
     expose:
       - "8000"
     volumes:
@@ -35,6 +80,11 @@ services:
       - .env
     environment:
       - CAJACLARAD_DB_PATH=/app/data/cajaclarad.db
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 45M
     depends_on:
       - cajaclarad
     logging:

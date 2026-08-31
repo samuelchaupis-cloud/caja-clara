@@ -1,0 +1,39 @@
+[Unit]
+Description=CajaClara - Demonio Despachador Outbox a ERP/Webhooks
+Documentation=https://github.com/samuelchaupis-cloud/caja-clara
+After=network-online.target cajaclarad.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=cajaclarad
+Group=cajaclarad
+EnvironmentFile=/etc/cajaclarad/env
+WorkingDirectory=/opt/cajaclarad
+ExecStart=/usr/local/bin/uv run cajaclara-dispatcher
+
+# Resiliencia y Control de Memoria (Cgroups v2: RAM < 45MB)
+MemoryMax=45M
+MemoryHigh=40M
+MemorySwapMax=0
+Restart=on-failure
+RestartSec=15
+TimeoutStopSec=30
+
+# Hardening / Sandboxing de Seguridad
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+SystemCallFilter=@system-service
+ReadWritePaths=/var/lib/cajaclarad /var/log/cajaclarad
+
+# Logging a journald
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=cajaclara-dispatcher
+
+[Install]
+WantedBy=multi-user.target

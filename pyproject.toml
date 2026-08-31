@@ -29,6 +29,7 @@ dependencies = [
 [project.scripts]
 cajaclarad = "caja_clara.main:main"
 caja-monitor = "caja_clara.cli_monitor:main"
+cajaclara-dispatcher = "caja_clara.dispatcher:main"
 
 [dependency-groups]
 dev = [
