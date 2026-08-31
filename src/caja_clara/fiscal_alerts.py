@@ -11,6 +11,13 @@ from typing import Any
 from caja_clara.models import InvoiceRecord, OutboxEvent
 
 
+def _format_decimal(val: Decimal | None) -> str | None:
+    """Formatea un Decimal a string con 2 decimales sin pérdida de precisión de coma flotante."""
+    if val is None:
+        return None
+    return f"{val:.2f}"
+
+
 def build_canonical_erp_payload(record: InvoiceRecord) -> dict[str, Any]:
     """Construye un payload JSON normalizado (Esquema Canónico ERP v1).
 
@@ -25,16 +32,10 @@ def build_canonical_erp_payload(record: InvoiceRecord) -> dict[str, Any]:
     elif record.invoice_number:
         number = record.invoice_number.strip()
 
-    subtotal_f = float(record.subtotal) if record.subtotal is not None else None
-    tax_f = float(record.tax_amount) if record.tax_amount is not None else None
-    total_f = float(record.total_amount) if record.total_amount is not None else None
-    detraction_amt_f = float(record.detraction_amount) if record.detraction_amount is not None else None
-    detraction_rate_f = float(record.detraction_rate) if record.detraction_rate is not None else None
-
     is_detraction = record.detraction_amount is not None or record.detraction_rate is not None
-    net_payable = None
-    if total_f is not None and detraction_amt_f is not None:
-        net_payable = round(total_f - detraction_amt_f, 2)
+    net_payable: Decimal | None = None
+    if record.total_amount is not None and record.detraction_amount is not None:
+        net_payable = (record.total_amount - record.detraction_amount).quantize(Decimal("0.01"))
 
     return {
         "spec_version": "1.0",
@@ -53,6 +54,10 @@ def build_canonical_erp_payload(record: InvoiceRecord) -> dict[str, Any]:
             "full_number": record.invoice_number,
             "issue_date": record.issue_date.strftime("%Y-%m-%d") if record.issue_date else None,
             "currency": record.currency or "PEN",
+            "reference_document_type": record.reference_document_type,
+            "reference_invoice_number": record.reference_invoice_number,
+            "discrepancy_code": record.discrepancy_code,
+            "discrepancy_reason": record.discrepancy_reason,
         },
         "party": {
             "issuer_ruc": record.issuer_id,
@@ -61,14 +66,14 @@ def build_canonical_erp_payload(record: InvoiceRecord) -> dict[str, Any]:
         },
         "accounting": {
             "currency_code": record.currency or "PEN",
-            "subtotal": subtotal_f,
-            "tax_amount": tax_f,
-            "total_amount": total_f,
+            "subtotal": _format_decimal(record.subtotal),
+            "tax_amount": _format_decimal(record.tax_amount),
+            "total_amount": _format_decimal(record.total_amount),
             "detraction": {
                 "is_subject": is_detraction,
-                "rate_percentage": detraction_rate_f,
-                "amount": detraction_amt_f,
-                "net_payable_to_vendor": net_payable,
+                "rate_percentage": _format_decimal(record.detraction_rate),
+                "amount": _format_decimal(record.detraction_amount),
+                "net_payable_to_vendor": _format_decimal(net_payable),
             },
         },
         "compliance": {
@@ -91,7 +96,7 @@ def evaluate_fiscal_alerts(record: InvoiceRecord) -> list[OutboxEvent]:
             "issuer_id": record.issuer_id,
             "issuer_name": record.issuer_name,
             "error_detail": record.error_detail or "CDR rechazado por la administración tributaria",
-            "total_amount": float(record.total_amount) if record.total_amount is not None else None,
+            "total_amount": _format_decimal(record.total_amount),
             "currency": record.currency or "PEN",
         }
         alerts.append(
@@ -113,11 +118,11 @@ def evaluate_fiscal_alerts(record: InvoiceRecord) -> list[OutboxEvent]:
                     "severity": "HIGH",
                     "invoice_number": record.invoice_number,
                     "issuer_id": record.issuer_id,
-                    "total_amount": float(record.total_amount),
-                    "detraction_rate": float(record.detraction_rate),
-                    "expected_detraction": float(expected_detraction),
-                    "declared_detraction": float(record.detraction_amount),
-                    "discrepancy_amount": float(discrepancy),
+                    "total_amount": _format_decimal(record.total_amount),
+                    "detraction_rate": _format_decimal(record.detraction_rate),
+                    "expected_detraction": _format_decimal(expected_detraction),
+                    "declared_detraction": _format_decimal(record.detraction_amount),
+                    "discrepancy_amount": _format_decimal(discrepancy),
                     "detail": "Discrepancia aritmética detectada entre tasa SPOT y monto detraído",
                 }
                 alerts.append(

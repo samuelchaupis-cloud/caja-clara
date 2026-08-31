@@ -40,8 +40,9 @@ def test_build_canonical_erp_payload():
     assert payload["document"]["sunat_type"] == "01"
     assert payload["document"]["full_number"] == "F001-00045678"
     assert payload["party"]["issuer_ruc"] == "20601234567"
-    assert payload["accounting"]["total_amount"] == 1180.00
-    assert payload["accounting"]["detraction"]["amount"] == 141.60
+    assert payload["accounting"]["total_amount"] == "1180.00"
+    assert payload["accounting"]["detraction"]["amount"] == "141.60"
+    assert payload["accounting"]["detraction"]["net_payable_to_vendor"] == "1038.40"
     assert payload["compliance"]["cdr_status"] == "ACCEPTED"
 
 

@@ -11,6 +11,12 @@ INVOICES_TOTAL = Counter(
     ["status", "document_type", "currency"],
 )
 
+MAILBOX_INVOICES_TOTAL = Counter(
+    "cajaclara_mailbox_invoices_total",
+    "Total de comprobantes procesados por buzón, estado, tipo y moneda",
+    ["mailbox", "status", "document_type", "currency"],
+)
+
 PROCESSING_DURATION_SECONDS = Histogram(
     "cajaclara_processing_duration_seconds",
     "Duración de procesamiento y extracción de comprobantes en segundos",
@@ -20,7 +26,18 @@ PROCESSING_DURATION_SECONDS = Histogram(
 
 IMAP_CONNECTION_STATUS = Gauge(
     "cajaclara_imap_connection_status",
-    "Estado actual de la conexión IMAP (1 = conectado, 0 = desconectado)",
+    "Estado actual de la conexión IMAP global (1 = conectado, 0 = desconectado)",
+)
+
+MAILBOX_STATUS = Gauge(
+    "cajaclara_mailbox_status",
+    "Estado actual de la conexión por buzón IMAP (1 = conectado, 0 = desconectado/error)",
+    ["mailbox"],
+)
+
+RESIDENT_MEMORY_BYTES = Gauge(
+    "cajaclara_resident_memory_bytes",
+    "Memoria física residente (RSS) del proceso en bytes",
 )
 
 DB_SIZE_BYTES = Gauge(

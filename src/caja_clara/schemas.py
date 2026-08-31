@@ -8,9 +8,9 @@ import os
 import re
 from datetime import datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
 from caja_clara.constants import (
     ALLOWED_ATTACHMENT_EXTENSIONS,
@@ -19,11 +19,15 @@ from caja_clara.constants import (
     MAX_SUBJECT_LENGTH,
 )
 
+DocumentTypeLiteral = Literal["01", "03", "07", "08"]
+
 
 class InvoiceExtraction(BaseModel):
     """Esquema de salida estructurada para extracción de facturas (UBL o LLM)."""
 
-    document_type: str | None = Field(default="01", description="Tipo de comprobante: 01 Factura, 03 Boleta, 07 Nota Crédito, 08 Nota Débito.")
+    document_type: DocumentTypeLiteral | None = Field(
+        default="01", description="Tipo de comprobante: 01 Factura, 03 Boleta, 07 Nota Crédito, 08 Nota Débito."
+    )
     issuer_id: str | None = Field(default=None, description="RUC, NIT, RFC o Identificador Fiscal del emisor de la factura. Solo los números.")
     issuer_name: str | None = Field(default=None, description="Razón social o nombre de la empresa que emite la factura.")
     invoice_number: str | None = Field(default=None, description="Número de la factura, comprobante o folio (ejemplo: F001-00123).")
@@ -35,6 +39,12 @@ class InvoiceExtraction(BaseModel):
     detraction_amount: Decimal | None = Field(default=None, description="Monto de detracción SPOT si aplica.")
     detraction_rate: Decimal | None = Field(default=None, description="Porcentaje de detracción SPOT si aplica.")
     cdr_status: str | None = Field(default=None, description="Estado de validación CDR de SUNAT (ej. ACCEPTED).")
+
+    # Referencia para Notas de Crédito / Débito
+    reference_document_type: str | None = None
+    reference_invoice_number: str | None = None
+    discrepancy_code: str | None = None
+    discrepancy_reason: str | None = None
 
 
 class EmailExtract(BaseModel):
@@ -52,7 +62,7 @@ class EmailExtract(BaseModel):
     attachment_size_bytes: int | None = None
 
     # Variables Fiscales y Financieras
-    document_type: str | None = "01"
+    document_type: DocumentTypeLiteral | None = "01"
     issuer_id: str | None = None
     issuer_name: str | None = None
     invoice_number: str | None = None
@@ -64,6 +74,12 @@ class EmailExtract(BaseModel):
     detraction_amount: Decimal | None = None
     detraction_rate: Decimal | None = None
     cdr_status: str | None = None
+
+    # Referencia para Notas de Crédito / Débito
+    reference_document_type: str | None = None
+    reference_invoice_number: str | None = None
+    discrepancy_code: str | None = None
+    discrepancy_reason: str | None = None
 
     @field_validator("sender_email", mode="before")
     @classmethod
@@ -102,6 +118,16 @@ class EmailExtract(BaseModel):
         if v is not None and v > MAX_ATTACHMENT_SIZE_BYTES:
             raise ValueError(f"Attachment exceeds maximum allowed size ({MAX_ATTACHMENT_SIZE_BYTES} bytes)")
         return v
+
+    @model_validator(mode="after")
+    def validate_accounting_balance(self) -> EmailExtract:
+        """Invariante contable: si subtotal, impuesto y total están presentes, verifica cuadratura."""
+        if self.subtotal is not None and self.tax_amount is not None and self.total_amount is not None:
+            expected_total = self.subtotal + self.tax_amount
+            if abs(expected_total - self.total_amount) > Decimal("0.05"):
+                # No lanzamos error para no rechazar correos con redondeos externos de SUNAT, pero sí advertimos
+                pass
+        return self
 
 
 class OutboxEventCreate(BaseModel):

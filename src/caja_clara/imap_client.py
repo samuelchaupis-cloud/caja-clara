@@ -15,12 +15,20 @@ logger = structlog.get_logger()
 
 
 class IMAPClient:
-    def __init__(self) -> None:
-        self._host = config.imap_host
-        self._port = config.imap_port
-        self._user = config.imap_user
-        self._password = config.imap_password
-        self._mailbox = None
+    def __init__(
+        self,
+        host: str | None = None,
+        port: int | None = None,
+        user: str | None = None,
+        password: str | None = None,
+        oauth2_token: str | None = None,
+    ) -> None:
+        self._host = host or config.imap_host
+        self._port = port or config.imap_port
+        self._user = user or config.imap_user
+        self._password = password or config.imap_password
+        self._oauth2_token = oauth2_token or config.imap_oauth2_token
+        self._mailbox: MailBox | None = None
 
     @retry(
         stop=stop_after_attempt(5),
@@ -29,25 +37,23 @@ class IMAPClient:
     )
     def connect(self) -> None:
         """Establece una conexión IMAP segura con verificación TLS obligatoria."""
-        logger.info("intentando_conexion_imap", host=self._host, port=self._port)
+        logger.info("intentando_conexion_imap", host=self._host, port=self._port, user=self._user)
 
         # La verificación de certificado TLS es OBLIGATORIA.
         # NUNCA deshabilitar check_hostname ni usar CERT_NONE en producción.
         ctx = ssl.create_default_context()
 
-        # connect args
-        # 30s timeout on connect/read operations
         self._mailbox = MailBox(self._host, port=self._port, timeout=30, ssl_context=ctx)
-        if config.imap_oauth2_token:
+        if self._oauth2_token:
             # Autenticación moderna XOAUTH2 para proveedores cloud
             logger.info("autenticando_via_xoauth2")
-            self._mailbox.xoauth2(self._user, config.imap_oauth2_token)
+            self._mailbox.xoauth2(self._user, self._oauth2_token)
         elif self._password:
             self._mailbox.login(self._user, self._password)
         else:
             raise ValueError("No se proveyó password ni token oauth2")
 
-        logger.info("autenticacion_imap_exitosa")
+        logger.info("autenticacion_imap_exitosa", user=self._user)
 
     def fetch_unseen(self) -> Generator[MailMessage, None, None]:
         """Generador que produce mensajes de correo no leídos."""
@@ -70,11 +76,11 @@ class IMAPClient:
             raise RuntimeError("No hay conexión IMAP establecida.")
 
         try:
-            logger.debug("entrando_estado_idle")
+            logger.debug("entrando_estado_idle", user=self._user)
             responses = self._mailbox.idle.wait(timeout=timeout)
             return bool(responses)
         except Exception as e:
-            logger.warning("error_imap_idle_fallback", error=str(e))
+            logger.warning("error_imap_idle_fallback", user=self._user, error=str(e))
             import time
 
             time.sleep(timeout)
@@ -85,7 +91,7 @@ class IMAPClient:
         if not self._mailbox:
             raise RuntimeError("No hay conexión IMAP establecida.")
         self._mailbox.flag(uid, ["\\Seen"], True)
-        logger.debug("mensaje_marcado_leido", uid=uid)
+        logger.debug("mensaje_marcado_leido", uid=uid, user=self._user)
 
     def logout(self) -> None:
         """Cierra la conexión al servidor IMAP de forma segura."""
@@ -93,7 +99,7 @@ class IMAPClient:
             try:
                 self._mailbox.logout()
             except Exception as e:
-                logger.warning("error_durante_logout_imap", error=str(e))
+                logger.warning("error_durante_logout_imap", user=self._user, error=str(e))
             finally:
                 self._mailbox = None
-                logger.info("Conexión IMAP cerrada.")
+                logger.info("Conexión IMAP cerrada.", user=self._user)

@@ -165,6 +165,10 @@ def parse_xml_invoice(xml_content: bytes) -> dict[str, Any]:
         "detraction_amount": None,
         "detraction_rate": None,
         "cdr_status": None,
+        "reference_document_type": None,
+        "reference_invoice_number": None,
+        "discrepancy_code": None,
+        "discrepancy_reason": None,
     }
 
     try:
@@ -186,6 +190,25 @@ def parse_xml_invoice(xml_content: bytes) -> dict[str, Any]:
             result["detraction_amount"],
             result["detraction_rate"],
         ) = _extract_monetary_amounts(root)
+
+        # Referencias de Notas de Crédito / Débito (UBL 2.1)
+        ref_id_nodes = root.xpath('//*[local-name()="BillingReference"]/*[local-name()="InvoiceDocumentReference"]/*[local-name()="ID"]/text()')
+        if ref_id_nodes:
+            result["reference_invoice_number"] = str(ref_id_nodes[0]).strip()
+
+        ref_type_nodes = root.xpath(
+            '//*[local-name()="BillingReference"]/*[local-name()="InvoiceDocumentReference"]/*[local-name()="DocumentTypeCode"]/text()'
+        )
+        if ref_type_nodes:
+            result["reference_document_type"] = str(ref_type_nodes[0]).strip()
+
+        disc_code_nodes = root.xpath('//*[local-name()="DiscrepancyResponse"]/*[local-name()="ResponseCode"]/text()')
+        if disc_code_nodes:
+            result["discrepancy_code"] = str(disc_code_nodes[0]).strip()
+
+        disc_desc_nodes = root.xpath('//*[local-name()="DiscrepancyResponse"]/*[local-name()="Description"]/text()')
+        if disc_desc_nodes:
+            result["discrepancy_reason"] = str(disc_desc_nodes[0]).strip()
 
         logger.info(
             "xml_ubl_procesado_exitosamente",

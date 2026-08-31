@@ -17,7 +17,7 @@ import structlog
 from sqlalchemy.exc import IntegrityError
 
 from caja_clara.config import config
-from caja_clara.database import engine, get_db, verify_db_integrity, verify_schema_version
+from caja_clara.database import engine, get_db, setup_sqlite_immutability_triggers, verify_db_integrity, verify_schema_version
 from caja_clara.extractor import extract_email_data
 from caja_clara.fiscal_alerts import build_canonical_erp_payload, evaluate_fiscal_alerts
 from caja_clara.imap_client import IMAPClient
@@ -120,7 +120,9 @@ def process_mailbox(client: IMAPClient) -> None:
                         db_session.add(record)
                         status_log = "DUPLICATE"
                     else:
-                        record = InvoiceRecord(**extract.model_dump())
+                        dump_data = extract.model_dump()
+                        dump_data["status"] = "PROCESSED"
+                        record = InvoiceRecord(**dump_data)
                         db_session.add(record)
 
                         # Patrón Transactional Outbox: Evento con Esquema Canónico ERP v1
@@ -204,6 +206,7 @@ def main():
     try:
         verify_db_integrity(engine)
         verify_schema_version(engine)
+        setup_sqlite_immutability_triggers(engine)
     except Exception as e:
         logger.critical("arranque_fallido", error=str(e))
         sys.exit(1)

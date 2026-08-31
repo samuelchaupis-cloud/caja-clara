@@ -40,6 +40,38 @@ def do_begin(conn: Connection) -> None:
     conn.exec_driver_sql("BEGIN IMMEDIATE")
 
 
+def setup_sqlite_immutability_triggers(db_engine: Engine) -> None:
+    """Instala triggers de inmutabilidad en SQLite para sellar registros contables PROCESSED."""
+    with db_engine.connect() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TRIGGER IF NOT EXISTS trg_invoice_records_immutable_update
+                BEFORE UPDATE ON invoice_records
+                FOR EACH ROW
+                WHEN OLD.status = 'PROCESSED'
+                BEGIN
+                    SELECT RAISE(ABORT, 'LEDGER_IMMUTABILITY_VIOLATION: No se permite modificar un comprobante PROCESSED');
+                END;
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                CREATE TRIGGER IF NOT EXISTS trg_invoice_records_immutable_delete
+                BEFORE DELETE ON invoice_records
+                FOR EACH ROW
+                WHEN OLD.status = 'PROCESSED'
+                BEGIN
+                    SELECT RAISE(ABORT, 'LEDGER_IMMUTABILITY_VIOLATION: No se permite eliminar un comprobante PROCESSED');
+                END;
+                """
+            )
+        )
+        conn.commit()
+
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, expire_on_commit=False)
 
 

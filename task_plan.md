@@ -1,6 +1,6 @@
 # Task Plan: CajaClara — Plataforma Fiscal y Concurrencia Enterprise
 
-**Estado General:** Fases 7, 8 y 9 completadas al 100% (71 tests en verde, 85.49% de cobertura real sin mocks).
+**Estado General:** Fases 7, 8, 9 y 10 completadas al 100% (82 tests en verde, 85.06% de cobertura real sin mocks).
 
 ---
 
@@ -44,3 +44,14 @@
 - [x] **Observabilidad del Despacho:** Instrumentar métricas Prometheus (`OUTBOX_DELIVERY_DURATION_SECONDS`, `OUTBOX_DELIVERY_RETRIES_TOTAL`, `OUTBOX_EVENTS_TOTAL`, `FISCAL_ALERTS_TOTAL`).
 - [x] **Hardening de Contenedores:** Configurar `Dockerfile` con usuario no privilegiado `appuser:10001`, orquestar servicio `dispatcher` en `docker-compose.yml` (`read_only: true`, `security_opt: [no-new-privileges:true]`, `cap_drop: [ALL]`, Cgroups 45MB) y crear `deploy/cajaclara-dispatcher.service`.
 - [x] **Suite de Pruebas y Quality Gates:** 71 pruebas aprobadas (100% verde), 85.49% de cobertura real en `sqlite:///:memory:`.
+
+---
+
+### ✅ Fase 10: Multi-Buzón Concurrente, Ledger Inmutable y Blindaje de Memoria (COMPLETADA)
+- [x] **Inmutabilidad y Triggers SQL:** Implementar `setup_sqlite_immutability_triggers` con triggers `BEFORE UPDATE` y `BEFORE DELETE` en `database.py` que abortan con `IntegrityError` ante mutaciones en registros `PROCESSED`.
+- [x] **Restricción CheckConstraint & Notas de Crédito:** Añadir `CheckConstraint` para `document_type` en `models.py` y campos de referencia contable (`reference_document_type`, `reference_invoice_number`, `discrepancy_code`, `discrepancy_reason`) en `models.py`, `schemas.py` y `xml_parser.py`.
+- [x] **Dominio Decimal Estricto:** Erradicar todo uso de `float()` en `fiscal_alerts.py` y `schemas.py`, asegurando formateo exacto de strings decimales y validación de cuadratura contable.
+- [x] **Hardening de Memoria y Streaming:** Reducir `MAX_ATTACHMENT_SIZE_BYTES` a 8MB en `constants.py` y descompresión ZIP por bloques de 64KB con cuota en tiempo real en `extractor.py`.
+- [x] **Orquestador Multi-Buzón:** Desarrollar `MailboxPoolOrchestrator` y `MailboxWorker` en `src/caja_clara/mailbox_pool.py` con supervisión concurrente y aislamiento de fallos $N-1$ inmunes.
+- [x] **Observabilidad Multi-Buzón:** Instrumentar `MAILBOX_STATUS`, `MAILBOX_INVOICES_TOTAL` y `RESIDENT_MEMORY_BYTES` en `metrics.py`.
+- [x] **Suite de Pruebas CoVe & Caos:** 82 pruebas aprobadas (100% verde), 85.06% de cobertura real en `sqlite:///:memory:` y auditoría Code Breaker superada con 0 defectos.

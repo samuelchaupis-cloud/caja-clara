@@ -9,6 +9,7 @@ from decimal import Decimal
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     Column,
     DateTime,
     Index,
@@ -54,11 +55,19 @@ class InvoiceRecord(Base):
     detraction_rate: Mapped[Decimal | None] = mapped_column(Numeric(5, 2), nullable=True)
     cdr_status: Mapped[str | None] = mapped_column(String(50), nullable=True)  # ACCEPTED / REJECTED
 
+    # Referencia Contable para Notas de Crédito (07) y Débito (08)
+    reference_document_type: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    reference_invoice_number: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    discrepancy_code: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    discrepancy_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
     # Estado y tracking
     status: Mapped[str] = mapped_column(String, nullable=False, default="PENDING", index=True)
     error_detail: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at = Column(DateTime, nullable=False, server_default=func.now())
     updated_at = Column(DateTime, nullable=False, server_default=func.now(), onupdate=func.now())
+
+    __table_args__ = (CheckConstraint("document_type IS NULL OR document_type IN ('01', '03', '07', '08')", name="chk_valid_document_type"),)
 
 
 class OutboxEvent(Base):

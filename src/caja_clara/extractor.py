@@ -50,6 +50,8 @@ def _process_zip_payload(payload: bytes) -> tuple[dict[str, Any], str | None]:
 
             xml_invoice_bytes: bytes | None = None
             cdr_bytes: bytes | None = None
+            total_extracted_bytes = 0
+            CHUNK_SIZE = 64 * 1024
 
             for name in namelist:
                 # Prevenir path traversal en nombres de archivos internos
@@ -58,7 +60,15 @@ def _process_zip_payload(payload: bytes) -> tuple[dict[str, Any], str | None]:
 
                 clean_name = name.lower()
                 if clean_name.endswith(".xml"):
-                    content = z.read(name)
+                    content_chunks = []
+                    with z.open(name) as f:
+                        while chunk := f.read(CHUNK_SIZE):
+                            total_extracted_bytes += len(chunk)
+                            if total_extracted_bytes > MAX_UNCOMPRESSED_ZIP_SIZE:
+                                return {}, "El contenido descomprimido del ZIP excede el límite de 10MB"
+                            content_chunks.append(chunk)
+                    content = b"".join(content_chunks)
+
                     # Comprobar si es un CDR (usualmente empieza por R- o contiene CDR/ApplicationResponse)
                     if clean_name.startswith("r-") or "cdr" in clean_name:
                         cdr_bytes = content
