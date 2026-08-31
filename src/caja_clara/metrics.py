@@ -76,6 +76,31 @@ FISCAL_ALERTS_TOTAL = Counter(
     ["alert_type", "severity"],
 )
 
+# Métricas de Replicación Continua y Disaster Recovery (Litestream / S3)
+LITESTREAM_LAG_SECONDS = Gauge(
+    "cajaclara_litestream_lag_seconds",
+    "Latencia de replicación entre SQLite local y almacenamiento S3/R2 en segundos",
+    ["replica", "storage_provider"],
+)
+
+REPLICATION_STATUS = Gauge(
+    "cajaclara_replication_status",
+    "Estado de la réplica continua (1 = sincronizando/activo, 0 = degradado/desconectado)",
+    ["replica", "storage_provider"],
+)
+
+LAST_SNAPSHOT_TIMESTAMP = Gauge(
+    "cajaclara_last_snapshot_timestamp",
+    "Timestamp Unix (segundos desde epoch) de la última instantánea completa en S3/R2",
+    ["replica", "storage_provider"],
+)
+
+REPLICATION_SYNC_ERRORS_TOTAL = Counter(
+    "cajaclara_replication_sync_errors_total",
+    "Total acumulado de fallos de red o errores HTTP al sincronizar frames WAL a S3/R2",
+    ["replica", "error_type"],
+)
+
 
 def get_metrics_registry() -> CollectorRegistry:
     """Retorna el registro global de métricas de Prometheus."""

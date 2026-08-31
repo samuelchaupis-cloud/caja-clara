@@ -8,6 +8,11 @@ services:
     restart: unless-stopped
     command: uv run cajaclarad
     user: "10001:10001"
+    read_only: true
+    tmpfs:
+      - /tmp:size=10M,mode=1777
+    cap_drop:
+      - ALL
     security_opt:
       - no-new-privileges:true
     volumes:
@@ -70,6 +75,11 @@ services:
     restart: unless-stopped
     command: uv run uvicorn caja_clara.api:app --host 0.0.0.0 --port 8000
     user: "10001:10001"
+    read_only: true
+    tmpfs:
+      - /tmp:size=10M,mode=1777
+    cap_drop:
+      - ALL
     security_opt:
       - no-new-privileges:true
     expose:

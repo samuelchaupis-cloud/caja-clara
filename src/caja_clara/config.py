@@ -27,6 +27,12 @@ class Settings(BaseSettings):
     poll_interval: int = Field(default=120, alias="CAJACLARAD_POLL_INTERVAL", ge=10)
     log_level: str = Field(default="INFO", alias="CAJACLARAD_LOG_LEVEL")
 
+    # Replicación y Disaster Recovery (Litestream / S3 / R2)
+    litestream_endpoint: str | None = Field(default=None, alias="LITESTREAM_ENDPOINT")
+    litestream_bucket: str | None = Field(default=None, alias="LITESTREAM_BUCKET")
+    litestream_access_key_id: str | None = Field(default=None, alias="LITESTREAM_ACCESS_KEY_ID")
+    litestream_secret_access_key: str | None = Field(default=None, alias="LITESTREAM_SECRET_ACCESS_KEY")
+
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
 

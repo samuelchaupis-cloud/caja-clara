@@ -18,7 +18,13 @@ from starlette.status import HTTP_403_FORBIDDEN
 from caja_clara.cli_monitor import get_status_data
 from caja_clara.config import config
 from caja_clara.database import get_db
-from caja_clara.metrics import get_metrics_registry
+from caja_clara.metrics import (
+    LAST_SNAPSHOT_TIMESTAMP,
+    LITESTREAM_LAG_SECONDS,
+    REPLICATION_STATUS,
+    REPLICATION_SYNC_ERRORS_TOTAL,
+    get_metrics_registry,
+)
 from caja_clara.models import InvoiceRecord
 from caja_clara.reports import generate_erp_csv, generate_sire_rce
 
@@ -57,12 +63,59 @@ def read_root() -> dict[str, str]:
 
 @app.get("/health/ready")
 def readiness_probe(db: Session = Depends(get_db)) -> dict[str, str]:
-    """Readiness probe que valida conexión real con SQLite."""
+    """Readiness probe que valida conexión real con SQLite (Sanitizado CWE-209)."""
     try:
         db.execute(InvoiceRecord.__table__.select().limit(1))
         return {"status": "ready", "database": "connected"}
-    except Exception as e:
-        raise HTTPException(status_code=503, detail=f"Database unready: {e!s}")
+    except Exception:
+        raise HTTPException(status_code=503, detail="Database unavailable")
+
+
+@app.get("/health/replication")
+def get_replication_health() -> dict[str, Any]:
+    """Endpoint público de telemetría de replicación continua y lag de Litestream."""
+    try:
+        lag_val = LITESTREAM_LAG_SECONDS.labels(replica="primary", storage_provider="s3")._value.get()
+        lag = float(lag_val) if lag_val is not None else 0.0
+    except Exception:
+        lag = 0.0
+
+    try:
+        status_val = REPLICATION_STATUS.labels(replica="primary", storage_provider="s3")._value.get()
+        is_synced = status_val == 1.0 and lag < 10.0
+    except Exception:
+        is_synced = False
+
+    try:
+        last_snap = LAST_SNAPSHOT_TIMESTAMP.labels(replica="primary", storage_provider="s3")._value.get() or 0.0
+    except Exception:
+        last_snap = 0.0
+
+    try:
+        sync_err = sum(
+            REPLICATION_SYNC_ERRORS_TOTAL.labels(replica="primary", error_type=et)._value.get()
+            for et in ("network_timeout", "http_5xx", "auth_error")
+        )
+    except Exception:
+        sync_err = 0
+
+    return {
+        "status": "synchronized" if is_synced else "degraded",
+        "replication_enabled": bool(config.litestream_bucket),
+        "lag_seconds": round(lag, 3),
+        "last_snapshot_timestamp": int(last_snap),
+        "sync_errors_total": int(sync_err),
+        "storage_provider": "s3" if config.litestream_bucket else "none",
+    }
+
+
+@app.get("/api/v1/health/replica", dependencies=[Depends(get_api_key)])
+def get_detailed_replica_health() -> dict[str, Any]:
+    """Endpoint administrativo protegido para auditoría de réplicas en Cloudflare R2 / S3."""
+    health_data = get_replication_health()
+    health_data["endpoint"] = config.litestream_endpoint or "none"
+    health_data["bucket"] = config.litestream_bucket or "none"
+    return health_data
 
 
 @app.get("/metrics", response_class=PlainTextResponse)

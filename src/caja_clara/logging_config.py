@@ -19,10 +19,28 @@ def _mask_ruc(match: re.Match[str]) -> str:
     return f"{val[:2]}*******{val[-2:]}"
 
 
+SECRET_KEY_PATTERNS = ("password", "secret", "token", "key", "auth", "credential", "signature", "litestream", "pass")
+
+
+def _is_secret_key(key: str) -> bool:
+    key_lower = key.lower()
+    return any(pattern in key_lower for pattern in SECRET_KEY_PATTERNS)
+
+
+def _sanitize_value(val: Any) -> Any:
+    if isinstance(val, dict):
+        return {k: _sanitize_value(v) for k, v in val.items() if not _is_secret_key(str(k))}
+    if isinstance(val, list):
+        return [_sanitize_value(item) for item in val]
+    if isinstance(val, str):
+        return RUC_REGEX.sub(_mask_ruc, val)
+    return val
+
+
 def redact_pii(logger: Any, method_name: str, event_dict: EventDict) -> EventDict:
     """
-    Redact Personally Identifiable Information (PII) from logs universalmente.
-    Aplica en todos los niveles (incluido DEBUG) para estricto compliance.
+    Redact Personally Identifiable Information (PII) and cloud secrets from logs.
+    Aplica de forma recursiva en todos los niveles (incluido DEBUG) para estricto compliance.
     """
     if "sender_email" in event_dict:
         email = event_dict["sender_email"]
@@ -42,14 +60,15 @@ def redact_pii(logger: Any, method_name: str, event_dict: EventDict) -> EventDic
         if subject:
             event_dict["subject"] = subject[:20] + " [REDACTED]"
 
-    # Enmascarar RUCs que aparezcan en mensajes o descripciones
-    for k, v in list(event_dict.items()):
-        if isinstance(v, str) and k not in ("timestamp", "level", "event", "logger"):
-            event_dict[k] = RUC_REGEX.sub(_mask_ruc, v)
+    # Sanitizar y purgar claves sensibles y estructuras anidadas
+    keys_to_delete = [k for k in event_dict if _is_secret_key(k)]
+    for k in keys_to_delete:
+        event_dict.pop(k, None)
 
-    # Purgar credenciales y secretos incondicionalmente
-    for secret_key in ("password", "imap_password", "api_key", "ai_api_key", "token", "secret"):
-        event_dict.pop(secret_key, None)
+    # Sanitizar recursivamente los valores restantes
+    for k, v in list(event_dict.items()):
+        if k not in ("timestamp", "level", "event", "logger"):
+            event_dict[k] = _sanitize_value(v)
 
     return event_dict
 

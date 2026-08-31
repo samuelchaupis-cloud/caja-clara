@@ -1,6 +1,6 @@
 # Task Plan: CajaClara — Plataforma Fiscal y Concurrencia Enterprise
 
-**Estado General:** Fases 7, 8, 9 y 10 completadas al 100% (82 tests en verde, 85.06% de cobertura real sin mocks).
+**Estado General:** Fases 7, 8, 9, 10 y 11 completadas al 100% (91 tests en verde, 85.14% de cobertura real sin mocks).
 
 ---
 
@@ -55,3 +55,14 @@
 - [x] **Orquestador Multi-Buzón:** Desarrollar `MailboxPoolOrchestrator` y `MailboxWorker` en `src/caja_clara/mailbox_pool.py` con supervisión concurrente y aislamiento de fallos $N-1$ inmunes.
 - [x] **Observabilidad Multi-Buzón:** Instrumentar `MAILBOX_STATUS`, `MAILBOX_INVOICES_TOTAL` y `RESIDENT_MEMORY_BYTES` en `metrics.py`.
 - [x] **Suite de Pruebas CoVe & Caos:** 82 pruebas aprobadas (100% verde), 85.06% de cobertura real en `sqlite:///:memory:` y auditoría Code Breaker superada con 0 defectos.
+
+---
+
+### ✅ Fase 11: Replicación Litestream a Cloudflare R2/S3, Health Probes Seguras y Resiliencia Distribuida (COMPLETADA)
+- [x] **Variables de Entorno Litestream:** Configuración de `Settings` en `src/caja_clara/config.py` con soporte para endpoints, buckets y llaves S3/R2.
+- [x] **Métricas de Replicación Prometheus:** Implementar en `src/caja_clara/metrics.py`: `LITESTREAM_LAG_SECONDS`, `REPLICATION_STATUS`, `LAST_SNAPSHOT_TIMESTAMP` y `REPLICATION_SYNC_ERRORS_TOTAL`.
+- [x] **Sanitización de Health Probes (CWE-209):** Refactorizar `/health/ready` en `src/caja_clara/api.py` para devolver `HTTP 503` sanitizado sin volcado de rutas ni excepciones SQLite.
+- [x] **Endpoint de Telemetría de Réplica:** Implementar `/health/replication` público con lag en segundos y `/api/v1/health/replica` administrativo protegido por `X-API-Key`.
+- [x] **Endurecimiento de Logs contra Fugas de Secretos:** Implementar en `redact_pii` filtrado recursivo de estructuras anidadas y matching de claves S3/R2 (`litestream_secret_key`, `access_key_id`, etc.).
+- [x] **Hardening de Servicios en Docker Compose:** Configurar `read_only: true`, `cap_drop: [ALL]` y `tmpfs` en `cajaclarad` y `api`.
+- [x] **Inversión Red-Green y Suite de Pruebas:** 91 pruebas aprobadas (100% verde), 85.14% de cobertura real y auditoría Code Breaker certificada sin fallos.

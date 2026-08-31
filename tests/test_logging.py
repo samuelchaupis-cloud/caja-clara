@@ -42,6 +42,35 @@ def test_redact_pii_debug_mode_strict():
     assert redacted["issuer_id"] == "20*******77"
 
 
+def test_redact_pii_cloud_secrets_and_nested():
+    """Valida la purga de credenciales S3/R2/Litestream y estructuras anidadas."""
+    event_dict = {
+        "level": "info",
+        "litestream_secret_key": "secret_r2_token_xyz",
+        "access_key_id": "AKIA1234567890",
+        "nested_config": {
+            "s3_token": "hidden_nested_token",
+            "safe_param": "visible_value",
+            "client_ruc": "20123456789",
+        },
+        "list_items": [
+            {"auth_bearer": "bearer_123", "name": "item_1"},
+            "Texto con RUC 10987654321 incluido",
+        ],
+    }
+
+    redacted = redact_pii(None, "info", event_dict)
+
+    assert "litestream_secret_key" not in redacted
+    assert "access_key_id" not in redacted
+    assert "s3_token" not in redacted["nested_config"]
+    assert redacted["nested_config"]["safe_param"] == "visible_value"
+    assert redacted["nested_config"]["client_ruc"] == "20*******89"
+    assert "auth_bearer" not in redacted["list_items"][0]
+    assert redacted["list_items"][0]["name"] == "item_1"
+    assert "10*******21" in redacted["list_items"][1]
+
+
 def test_setup_logging():
     """Valida la inicialización de structlog sin errores."""
     setup_logging("DEBUG")
