@@ -5,7 +5,7 @@ Módulo del despachador asíncrono de eventos outbox (Transactional Outbox Patte
 from __future__ import annotations
 
 import asyncio
-import random
+import secrets
 import signal
 import sys
 import time
@@ -48,8 +48,8 @@ class OutboxDispatcher:
     ) -> None:
         self.db_factory = db_factory
         self._external_client = http_client
-        self.target_url = target_url or getattr(config, "webhook_url", "http://localhost:8000/api/v1/webhooks")
-        self.webhook_secret = webhook_secret or getattr(config, "api_key", "default_secret")
+        self.target_url: str = str(target_url or getattr(config, "webhook_url", "http://localhost:8000/api/v1/webhooks"))
+        self.webhook_secret: str = str(webhook_secret or getattr(config, "api_key", "default_secret"))
         self.max_retries = max_retries
         self.base_delay = base_delay
         self.max_delay = max_delay
@@ -165,7 +165,7 @@ class OutboxDispatcher:
                 elif is_transient:
                     new_retry_count = retry_count + 1
                     if new_retry_count <= self.max_retries:
-                        jitter = random.uniform(0.1, 0.5)  # noqa: S311
+                        jitter = secrets.SystemRandom().uniform(0.1, 0.5)
                         delay = min(self.max_delay, self.base_delay * (2**retry_count)) + jitter
                         ev.status = "PENDING"
                         ev.retry_count = new_retry_count

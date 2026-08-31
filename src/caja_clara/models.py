@@ -10,7 +10,6 @@ from decimal import Decimal
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
-    Column,
     DateTime,
     Index,
     Integer,
@@ -19,23 +18,25 @@ from sqlalchemy import (
     Text,
     func,
 )
-from sqlalchemy.orm import Mapped, declarative_base, mapped_column
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-Base = declarative_base()
+
+class Base(DeclarativeBase):
+    pass
 
 
 class InvoiceRecord(Base):
     __tablename__ = "invoice_records"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    message_id = Column(String, unique=True, nullable=False)
-    imap_uid = Column(Integer, nullable=False)
-    mailbox_account = Column(String, nullable=False)
-    sender_email = Column(String, nullable=False, index=True)
-    received_date = Column(DateTime, nullable=False, index=True)
-    subject = Column(String, nullable=True)
-    body_preview = Column(String, nullable=True)
-    has_attachments = Column(Boolean, nullable=False, default=False)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    message_id: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    imap_uid: Mapped[int] = mapped_column(Integer, nullable=False)
+    mailbox_account: Mapped[str] = mapped_column(String, nullable=False)
+    sender_email: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    received_date: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    subject: Mapped[str | None] = mapped_column(String, nullable=True)
+    body_preview: Mapped[str | None] = mapped_column(String, nullable=True)
+    has_attachments: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     # Datos del adjunto (indexado para acelerar deduplicación O(log N))
     attachment_filename: Mapped[str | None] = mapped_column(String, nullable=True)
     attachment_hash: Mapped[str | None] = mapped_column(String, nullable=True, index=True)
@@ -64,8 +65,8 @@ class InvoiceRecord(Base):
     # Estado y tracking
     status: Mapped[str] = mapped_column(String, nullable=False, default="PENDING", index=True)
     error_detail: Mapped[str | None] = mapped_column(String, nullable=True)
-    created_at = Column(DateTime, nullable=False, server_default=func.now())
-    updated_at = Column(DateTime, nullable=False, server_default=func.now(), onupdate=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.now(), onupdate=func.now())
 
     __table_args__ = (CheckConstraint("document_type IS NULL OR document_type IN ('01', '03', '07', '08')", name="chk_valid_document_type"),)
 

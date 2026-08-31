@@ -37,6 +37,8 @@ dev = [
     "pytest-cov>=5.0.0",
     "ruff>=0.6.9",
     "bandit>=1.7.10",
+    "mypy>=1.11.0",
+    "lxml-stubs>=0.5.1",
 ]
 
 [tool.ruff]
@@ -59,3 +61,18 @@ ignore = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = false
+warn_return_any = false
+warn_unused_configs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = "caja_clara.parsers.xml_parser"
+disable_error_code = ["union-attr", "index", "arg-type"]
+
+

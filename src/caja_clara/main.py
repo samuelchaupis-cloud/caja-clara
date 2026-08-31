@@ -142,7 +142,7 @@ def process_mailbox(client: IMAPClient) -> None:
                 else:
                     record = InvoiceRecord(
                         message_id=msg.headers.get("message-id", (f"<{msg.uid}@unknown>",))[0],
-                        imap_uid=int(msg.uid),
+                        imap_uid=int(msg.uid or 0),
                         mailbox_account=config.imap_user,
                         sender_email=msg.from_ or "unknown",
                         received_date=msg.date or datetime.now(UTC),
@@ -155,7 +155,8 @@ def process_mailbox(client: IMAPClient) -> None:
                     status_log = "ERROR"
 
                 db_session.commit()
-                client.mark_seen(msg.uid)
+                if msg.uid is not None:
+                    client.mark_seen(str(msg.uid))
 
                 # Registrar métricas Prometheus
                 doc_type = record.document_type or "01"
@@ -174,7 +175,8 @@ def process_mailbox(client: IMAPClient) -> None:
 
             except IntegrityError:
                 db_session.rollback()
-                client.mark_seen(msg.uid)
+                if msg.uid is not None:
+                    client.mark_seen(str(msg.uid))
                 logger.debug("correo_duplicado_ignorado", uid=msg.uid)
 
             except Exception as e:

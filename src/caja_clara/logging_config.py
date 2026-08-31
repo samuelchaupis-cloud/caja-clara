@@ -5,8 +5,10 @@ Logging configuration with structlog and PII redaction.
 import logging
 import re
 import sys
+from typing import Any
 
 import structlog
+from structlog.types import EventDict
 
 # Regex para detección de RUC/DNI en cadenas
 RUC_REGEX = re.compile(r"\b(10|20)\d{9}\b")
@@ -17,7 +19,7 @@ def _mask_ruc(match: re.Match[str]) -> str:
     return f"{val[:2]}*******{val[-2:]}"
 
 
-def redact_pii(_, __, event_dict: dict) -> dict:
+def redact_pii(logger: Any, method_name: str, event_dict: EventDict) -> EventDict:
     """
     Redact Personally Identifiable Information (PII) from logs universalmente.
     Aplica en todos los niveles (incluido DEBUG) para estricto compliance.

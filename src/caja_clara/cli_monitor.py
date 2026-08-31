@@ -45,7 +45,7 @@ def format_bytes(size: float) -> str:
     return f"{size:3.1f} TB"
 
 
-def generate_dashboard() -> Layout:
+def generate_dashboard() -> Layout | Panel:
     """Genera el layout visual con los datos actuales."""
     data = get_status_data()
 

@@ -73,7 +73,7 @@ def parse_pdf_invoice(pdf_content: bytes) -> dict[str, Any]:
                 )
 
                 # Cargar la respuesta tipada del LLM
-                llm_dict = json.loads(response.text)
+                llm_dict = json.loads(response.text or "{}")
 
                 # Mapear datos (parseando la fecha si aplica)
                 for k in result:

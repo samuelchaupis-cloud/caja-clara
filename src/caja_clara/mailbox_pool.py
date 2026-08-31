@@ -169,7 +169,7 @@ class MailboxWorker(threading.Thread):
                         else:
                             record = InvoiceRecord(
                                 message_id=msg.headers.get("message-id", (f"<{msg.uid}@unknown>",))[0],
-                                imap_uid=int(msg.uid),
+                                imap_uid=int(msg.uid or 0),
                                 mailbox_account=self.config.account_id,
                                 sender_email=msg.from_ or "unknown",
                                 received_date=msg.date or datetime.now(UTC),
@@ -185,7 +185,8 @@ class MailboxWorker(threading.Thread):
                         processed_count += 1
 
                         # Fase 3: Acknowledgment en Red
-                        self.client.mark_seen(msg.uid)
+                        if msg.uid is not None:
+                            self.client.mark_seen(str(msg.uid))
 
                         # Métricas
                         duration = time.perf_counter() - t0
@@ -202,7 +203,8 @@ class MailboxWorker(threading.Thread):
 
                     except IntegrityError:
                         session.rollback()
-                        self.client.mark_seen(msg.uid)
+                        if msg.uid is not None:
+                            self.client.mark_seen(str(msg.uid))
 
             self.state = "IDLE"
         finally:
