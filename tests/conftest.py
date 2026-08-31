@@ -1,6 +1,7 @@
 """
 Configuración centralizada para Pytest y fixtures.
 """
+
 import os
 
 # Inyectamos variables obligatorias ANTES de importar módulos que cargan config.py
@@ -29,6 +30,7 @@ def db_engine():
     Base.metadata.create_all(bind=engine)
     yield engine
     Base.metadata.drop_all(bind=engine)
+
 
 @pytest.fixture
 def db_session(db_engine):

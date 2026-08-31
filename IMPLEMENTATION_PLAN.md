@@ -170,6 +170,7 @@ engine = create_engine(
     pool_pre_ping=True,
 )
 
+
 @event.listens_for(engine, "connect")
 def set_sqlite_pragmas(dbapi_conn, connection_record):
     cursor = dbapi_conn.cursor()
@@ -200,10 +201,10 @@ def set_sqlite_pragmas(dbapi_conn, connection_record):
 ### Límites y constantes (`constants.py`)
 
 ```python
-MAX_ATTACHMENT_SIZE_BYTES = 25 * 1024 * 1024   # 25 MB
-MAX_BODY_LENGTH_CHARS = 100_000                 # 100K caracteres
-MAX_SUBJECT_LENGTH = 998                        # RFC 2822
-MAX_FILENAME_LENGTH = 255                       # POSIX
+MAX_ATTACHMENT_SIZE_BYTES = 25 * 1024 * 1024  # 25 MB
+MAX_BODY_LENGTH_CHARS = 100_000  # 100K caracteres
+MAX_SUBJECT_LENGTH = 998  # RFC 2822
+MAX_FILENAME_LENGTH = 255  # POSIX
 ALLOWED_ATTACHMENT_EXTENSIONS = {".pdf", ".xml", ".xlsx", ".csv", ".png", ".jpg"}
 ```
 
@@ -234,6 +235,7 @@ ALLOWED_ATTACHMENT_EXTENSIONS = {".pdf", ".xml", ".xlsx", ".csv", ".png", ".jpg"
 ```python
 # imap_client.py
 from tenacity import retry, stop_after_attempt, wait_exponential, wait_random
+
 
 @retry(
     stop=stop_after_attempt(5),
@@ -341,9 +343,11 @@ import threading
 
 shutdown_event = threading.Event()
 
+
 def _handle_signal(signum, frame):
     log.info("señal_recibida", signal=signal.Signals(signum).name)
     shutdown_event.set()
+
 
 def main():
     signal.signal(signal.SIGTERM, _handle_signal)
@@ -450,13 +454,13 @@ El demonio escribe un archivo de estado atómico en cada ciclo:
 ```python
 # /var/lib/cajaclarad/status.json (escrito atómicamente con rename)
 {
-  "pid": 12345,
-  "uptime_seconds": 3600,
-  "last_successful_cycle": "2026-08-30T07:15:33Z",
-  "emails_processed_total": 247,
-  "emails_errored_total": 3,
-  "imap_connection_status": "connected",
-  "db_size_bytes": 1048576
+    "pid": 12345,
+    "uptime_seconds": 3600,
+    "last_successful_cycle": "2026-08-30T07:15:33Z",
+    "emails_processed_total": 247,
+    "emails_errored_total": 3,
+    "imap_connection_status": "connected",
+    "db_size_bytes": 1048576,
 }
 ```
 
@@ -478,8 +482,7 @@ def verify_schema_version():
     current = get_current_revision(engine)
     expected = get_head_revision()
     if current != expected:
-        log.critical("version_esquema_incompatible",
-                     current=current, expected=expected)
+        log.critical("version_esquema_incompatible", current=current, expected=expected)
         sys.exit(1)
 ```
 

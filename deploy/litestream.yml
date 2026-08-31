@@ -1,0 +1,14 @@
+# Litestream configuration for CajaClara SQLite continuous WAL replication
+# Replicates to S3-compatible cloud storage (Cloudflare R2, AWS S3, MinIO) with RPO < 1s.
+
+dbs:
+  - path: /app/data/cajaclarad.db
+    replicas:
+      - type: s3
+        endpoint: ${LITESTREAM_ENDPOINT}
+        bucket: ${LITESTREAM_BUCKET}
+        path: db
+        access-key-id: ${LITESTREAM_ACCESS_KEY_ID}
+        secret-access-key: ${LITESTREAM_SECRET_ACCESS_KEY}
+        retention: 720h # Retención de 30 días
+        snapshot-interval: 24h

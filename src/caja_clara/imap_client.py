@@ -1,6 +1,7 @@
 """
 Cliente IMAP con resiliencia, verificación TLS estricta y soporte IDLE para conectar e interactuar con servidores de correo de forma segura.
 """
+
 import ssl
 from collections.abc import Generator
 
@@ -33,12 +34,10 @@ class IMAPClient:
         # La verificación de certificado TLS es OBLIGATORIA.
         # NUNCA deshabilitar check_hostname ni usar CERT_NONE en producción.
         ctx = ssl.create_default_context()
-        
+
         # connect args
         # 30s timeout on connect/read operations
-        self._mailbox = MailBox(
-            self._host, port=self._port, timeout=30, ssl_context=ctx
-        )
+        self._mailbox = MailBox(self._host, port=self._port, timeout=30, ssl_context=ctx)
         if config.imap_oauth2_token:
             # Autenticación moderna XOAUTH2 para proveedores cloud
             logger.info("autenticando_via_xoauth2")
@@ -47,20 +46,19 @@ class IMAPClient:
             self._mailbox.login(self._user, self._password)
         else:
             raise ValueError("No se proveyó password ni token oauth2")
-            
+
         logger.info("autenticacion_imap_exitosa")
 
     def fetch_unseen(self) -> Generator[MailMessage, None, None]:
         """Generador que produce mensajes de correo no leídos."""
         if not self._mailbox:
             raise RuntimeError("No hay conexión IMAP establecida.")
-        
+
         # Ensure connection is alive before fetching
         self._mailbox.client.noop()
-        
+
         # mark_seen=False es crítico para garantizar idempotencia en caso de crashes
-        for msg in self._mailbox.fetch(A(seen=False), mark_seen=False):
-            yield msg
+        yield from self._mailbox.fetch(A(seen=False), mark_seen=False)
 
     def wait_for_new_messages(self, timeout: int = 60) -> bool:
         """
@@ -70,7 +68,7 @@ class IMAPClient:
         """
         if not self._mailbox:
             raise RuntimeError("No hay conexión IMAP establecida.")
-        
+
         try:
             logger.debug("entrando_estado_idle")
             responses = self._mailbox.idle.wait(timeout=timeout)
@@ -78,6 +76,7 @@ class IMAPClient:
         except Exception as e:
             logger.warning("error_imap_idle_fallback", error=str(e))
             import time
+
             time.sleep(timeout)
             return True
 

@@ -14,13 +14,13 @@ EnvironmentFile=/etc/cajaclarad/env
 WorkingDirectory=/opt/cajaclarad
 ExecStart=/usr/local/bin/uv run cajaclarad
 
-# Resiliencia
+# Resiliencia y Control de Memoria (Cgroups v2: RAM < 45MB)
+MemoryMax=45M
+MemoryHigh=40M
+MemorySwapMax=0
 Restart=on-failure
 RestartSec=30
 TimeoutStopSec=30
-
-# Opcional para Fase 2
-# WatchdogSec=300
 
 # Hardening / Seguridad
 ProtectSystem=strict

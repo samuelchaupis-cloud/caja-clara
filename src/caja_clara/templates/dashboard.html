@@ -43,18 +43,20 @@
 </head>
 <body class="min-h-screen p-6 md:p-12">
     
-    <header class="mb-16 border-b border-white/10 pb-6 flex items-center justify-between">
+    <header class="mb-12 border-b border-white/10 pb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
             <h1 class="text-3xl font-display font-bold text-white tracking-tight">CajaClara</h1>
-            <p class="text-sm text-caja-muted mt-1 font-sans">Pipeline de Extracción y Conciliación</p>
+            <p class="text-sm text-caja-muted mt-1 font-sans">Pipeline de Extracción Fiscal UBL 2.1 & Conciliación Contable</p>
         </div>
-        <div class="px-4 py-1.5 rounded-full bg-caja-accentMuted border border-caja-accent/20 text-caja-accent text-sm font-medium flex items-center gap-2">
-            <span class="w-2 h-2 rounded-full bg-caja-accent shadow-[0_0_8px_#00ff9d]"></span>
-            Sistema Activo
+        <div class="flex items-center gap-3">
+            <div class="px-4 py-1.5 rounded-full bg-caja-accentMuted border border-caja-accent/20 text-caja-accent text-sm font-medium flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-caja-accent shadow-[0_0_8px_#00ff9d]"></span>
+                Motor UBL 2.1 Activo
+            </div>
         </div>
     </header>
 
-    <main class="max-w-7xl mx-auto space-y-12">
+    <main class="max-w-7xl mx-auto space-y-10">
         
         <!-- Metrics Section -->
         <section class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -83,18 +85,30 @@
             </div>
         </section>
 
-        <!-- Table Section -->
+        <!-- Table Section with Export Actions -->
         <section>
-            <h2 class="text-xl font-display font-bold mb-6 text-white">Registro de Operaciones</h2>
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                <div>
+                    <h2 class="text-xl font-display font-bold text-white">Registro de Comprobantes Fiscales</h2>
+                    <p class="text-xs text-caja-muted mt-0.5">Comprobantes procesados con extracción UBL 2.1 y validación de CDR</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs text-caja-muted mr-1">Descargas contables vía API:</span>
+                    <code class="px-2.5 py-1 rounded bg-white/5 border border-white/10 text-xs text-caja-accent font-mono">/api/v1/reports/sire</code>
+                    <code class="px-2.5 py-1 rounded bg-white/5 border border-white/10 text-xs text-caja-text font-mono">/api/v1/reports/export</code>
+                </div>
+            </div>
+
             <div class="bg-caja-card border border-white/5 rounded-2xl overflow-hidden">
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-sm whitespace-nowrap">
                         <thead class="bg-white/[0.02] border-b border-white/5 text-caja-muted font-medium">
                             <tr>
                                 <th class="px-6 py-4">Fecha</th>
-                                <th class="px-6 py-4">Remitente</th>
-                                <th class="px-6 py-4">Monto</th>
-                                <th class="px-6 py-4">Moneda</th>
+                                <th class="px-6 py-4">Emisor / RUC</th>
+                                <th class="px-6 py-4">Comprobante</th>
+                                <th class="px-6 py-4">Total</th>
+                                <th class="px-6 py-4">CDR</th>
                                 <th class="px-6 py-4">Estado</th>
                             </tr>
                         </thead>
@@ -102,19 +116,48 @@
                             {% for inv in invoices %}
                             <tr class="table-row-hover transition-colors">
                                 <td class="px-6 py-4 text-caja-muted">{{ inv.received_date.strftime('%Y-%m-%d %H:%M') }}</td>
-                                <td class="px-6 py-4 font-medium text-white">{{ inv.sender_email }}</td>
+                                <td class="px-6 py-4">
+                                    <div class="font-medium text-white">{{ inv.issuer_name or inv.sender_email }}</div>
+                                    {% if inv.issuer_id %}
+                                    <div class="text-xs text-caja-muted font-mono">RUC: {{ inv.issuer_id }}</div>
+                                    {% endif %}
+                                </td>
+                                <td class="px-6 py-4">
+                                    <span class="font-mono text-white">{{ inv.invoice_number or '-' }}</span>
+                                    {% if inv.document_type == '07' %}
+                                    <span class="ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">NC</span>
+                                    {% elif inv.document_type == '08' %}
+                                    <span class="ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20">ND</span>
+                                    {% endif %}
+                                </td>
                                 <td class="px-6 py-4 font-display text-white">
                                     {% if inv.total_amount %}
-                                        {{ "%.2f"|format(inv.total_amount) }}
+                                        {{ inv.currency or 'PEN' }} {{ "%.2f"|format(inv.total_amount) }}
                                     {% else %}
                                         -
                                     {% endif %}
                                 </td>
-                                <td class="px-6 py-4 text-caja-muted">{{ inv.currency or '-' }}</td>
+                                <td class="px-6 py-4">
+                                    {% if inv.cdr_status == 'ACCEPTED' %}
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-caja-accentMuted text-caja-accent border border-caja-accent/20">
+                                            SUNAT OK
+                                        </span>
+                                    {% elif inv.cdr_status == 'REJECTED' %}
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-500/10 text-caja-error border border-caja-error/20">
+                                            Rechazado
+                                        </span>
+                                    {% else %}
+                                        <span class="text-xs text-caja-muted font-mono">-</span>
+                                    {% endif %}
+                                </td>
                                 <td class="px-6 py-4">
                                     {% if inv.status == 'PROCESSED' %}
                                         <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-caja-accentMuted text-caja-accent border border-caja-accent/20">
                                             Procesado
+                                        </span>
+                                    {% elif inv.status == 'DUPLICATE' %}
+                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                                            Duplicado
                                         </span>
                                     {% elif inv.status == 'ERROR' %}
                                         <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-500/10 text-caja-error border border-caja-error/20">
@@ -129,7 +172,7 @@
                             </tr>
                             {% else %}
                             <tr>
-                                <td colspan="5" class="px-6 py-16 text-center text-caja-muted">
+                                <td colspan="6" class="px-6 py-16 text-center text-caja-muted">
                                     No hay operaciones registradas todavía.
                                 </td>
                             </tr>

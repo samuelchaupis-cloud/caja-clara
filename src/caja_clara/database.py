@@ -1,13 +1,14 @@
 """
 Database connection and session management.
 """
+
 from __future__ import annotations
 
 import sqlite3
 from collections.abc import Generator
 
 import structlog
-from sqlalchemy import create_engine, event, text
+from sqlalchemy import Connection, create_engine, event, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -31,6 +32,12 @@ def set_sqlite_pragmas(dbapi_connection: sqlite3.Connection, connection_record: 
     cursor.execute("PRAGMA foreign_keys=ON")
     cursor.execute("PRAGMA synchronous=NORMAL")
     cursor.close()
+
+
+@event.listens_for(engine, "begin")
+def do_begin(conn: Connection) -> None:
+    """Fuerza BEGIN IMMEDIATE en SQLite para prevenir deadlocks SQLITE_BUSY (Protocolo 4.2)."""
+    conn.exec_driver_sql("BEGIN IMMEDIATE")
 
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, expire_on_commit=False)
@@ -62,13 +69,13 @@ def verify_schema_version(db_engine: Engine) -> None:
 
     alembic_cfg = Config("alembic.ini")
     script = ScriptDirectory.from_config(alembic_cfg)
-    
+
     with db_engine.connect() as conn:
         context = MigrationContext.configure(conn)
         current_rev = context.get_current_revision()
-        
+
     head_rev = script.get_current_head()
-    
+
     if current_rev != head_rev:
         logger.critical(f"Incompatible schema version. Current: {current_rev}, Expected: {head_rev}")
         raise RuntimeError("Schema version mismatch")
