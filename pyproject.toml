@@ -30,6 +30,7 @@ dependencies = [
 cajaclarad = "caja_clara.main:main"
 caja-monitor = "caja_clara.cli_monitor:main"
 cajaclara-dispatcher = "caja_clara.dispatcher:main"
+cajaclara-admin = "caja_clara.cli_admin:main"
 
 [dependency-groups]
 dev = [

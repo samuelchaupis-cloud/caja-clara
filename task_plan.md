@@ -66,3 +66,12 @@
 - [x] **Endurecimiento de Logs contra Fugas de Secretos:** Implementar en `redact_pii` filtrado recursivo de estructuras anidadas y matching de claves S3/R2 (`litestream_secret_key`, `access_key_id`, etc.).
 - [x] **Hardening de Servicios en Docker Compose:** Configurar `read_only: true`, `cap_drop: [ALL]` y `tmpfs` en `cajaclarad` y `api`.
 - [x] **Inversión Red-Green y Suite de Pruebas:** 91 pruebas aprobadas (100% verde), 85.14% de cobertura real y auditoría Code Breaker certificada sin fallos.
+
+---
+
+### ✅ Fase 12: Hub de Integraciones ERP, Webhooks Certificados & Administración DLQ (COMPLETADA)
+- [x] **Adaptadores y Contratos ERP:** Desarrollar `src/caja_clara/erp_adapters.py` con transformaciones canónicas hacia Odoo (`account.move`), SAP Business One (`PurchaseInvoices` con UDFs SPOT) y Siigo Cloud.
+- [x] **Notificaciones Multi-Canal Desacopladas:** Implementar `src/caja_clara/notifications.py` con formateo y despacho resiliente para Telegram y WhatsApp con aislamiento total de fallos.
+- [x] **CLI de Gestión de DLQ:** Desarrollar `src/caja_clara/cli_admin.py` (`cajaclara-admin outbox list`, `replay`, `replay-all`) con `BEGIN IMMEDIATE` y registrar en `pyproject.toml`.
+- [x] **Manejo de Throttling y Resiliencia en Dispatcher:** Soporte para cabecera `Retry-After` en `HTTP 429`, sweeper de eventos huérfanos en `PROCESSING` y despacho opcional de alertas fiscales.
+- [x] **Inversión Red-Green y 4 Quality Gates:** Mutación determinista demostrada, 104 pruebas aprobadas (100% verde), 85.61% de cobertura real en SQLite `:memory:`, 0 errores Ruff, 0 errores Mypy y 0 vulnerabilidades Bandit.

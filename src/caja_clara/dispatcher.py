@@ -117,6 +117,8 @@ class OutboxDispatcher:
             is_transient = False
             is_fatal = False
 
+            retry_after_delay: float | None = None
+
             try:
                 response = await client.post(
                     self.target_url,
@@ -140,12 +142,35 @@ class OutboxDispatcher:
                     status_result = "transient_error"
                     error_message = f"HTTP {response.status_code}: {response.text[:255]}"
                     OUTBOX_DELIVERY_DURATION_SECONDS.labels(event_type=event_type, status="server_error").observe(duration)
+
+                    if response.status_code == 429:
+                        raw_retry_after = response.headers.get("Retry-After")
+                        if raw_retry_after:
+                            try:
+                                retry_after_delay = float(raw_retry_after)
+                            except ValueError:
+                                retry_after_delay = None
             except Exception as exc:
                 duration = time.perf_counter() - start_time
                 is_transient = True
                 status_result = "transient_error"
                 error_message = f"Transport error: {exc}"
                 OUTBOX_DELIVERY_DURATION_SECONDS.labels(event_type=event_type, status="network_error").observe(duration)
+
+            # Notificación multi-canal opcional (desacoplada con aislamiento total)
+            if event_type.startswith("fiscal.alert"):
+                try:
+                    from caja_clara.notifications import send_multichannel_notification
+
+                    await send_multichannel_notification(
+                        event_type=event_type,
+                        alert_payload=payload,
+                        telegram_bot_token=getattr(config, "telegram_bot_token", None),
+                        telegram_chat_id=getattr(config, "telegram_chat_id", None),
+                        http_client=client,
+                    )
+                except Exception as notif_err:
+                    logger.warning("falla_aislada_notificacion", error=str(notif_err))
 
             # Fase 3: Liquidación atómica en BD
             with self.db_factory() as session:
@@ -166,7 +191,11 @@ class OutboxDispatcher:
                     new_retry_count = retry_count + 1
                     if new_retry_count <= self.max_retries:
                         jitter = secrets.SystemRandom().uniform(0.1, 0.5)
-                        delay = min(self.max_delay, self.base_delay * (2**retry_count)) + jitter
+                        if retry_after_delay is not None:
+                            delay = min(self.max_delay, max(retry_after_delay, self.base_delay)) + jitter
+                        else:
+                            delay = min(self.max_delay, self.base_delay * (2**retry_count)) + jitter
+
                         ev.status = "PENDING"
                         ev.retry_count = new_retry_count
                         ev.next_retry_at = datetime.now(UTC) + timedelta(seconds=delay)
@@ -181,6 +210,23 @@ class OutboxDispatcher:
                         logger.error("outbox_max_reintentos_superado", event_id=event_id, error=error_message)
 
                 session.commit()
+
+    def recover_stuck_events(self, timeout_minutes: int = 5) -> int:
+        """Recupera eventos que quedaron en estado PROCESSING tras un crash o reinicio abrupto."""
+        cutoff = datetime.now(UTC) - timedelta(minutes=timeout_minutes)
+        with self.db_factory() as session:
+            stmt = select(OutboxEvent).where(
+                OutboxEvent.status == "PROCESSING",
+                or_(OutboxEvent.created_at <= cutoff, OutboxEvent.next_retry_at <= cutoff),
+            )
+            stuck_events = session.execute(stmt).scalars().all()
+            for ev in stuck_events:
+                ev.status = "PENDING"
+                ev.next_retry_at = datetime.now(UTC)
+            session.commit()
+            if stuck_events:
+                logger.info("eventos_processing_recuperados", total=len(stuck_events))
+            return len(stuck_events)
 
     async def run_forever(self, poll_interval: float = 2.0, shutdown_event: asyncio.Event | None = None) -> None:
         """Bucle principal de ejecución del dispatcher."""
