@@ -75,3 +75,13 @@
 - [x] **CLI de Gestión de DLQ:** Desarrollar `src/caja_clara/cli_admin.py` (`cajaclara-admin outbox list`, `replay`, `replay-all`) con `BEGIN IMMEDIATE` y registrar en `pyproject.toml`.
 - [x] **Manejo de Throttling y Resiliencia en Dispatcher:** Soporte para cabecera `Retry-After` en `HTTP 429`, sweeper de eventos huérfanos en `PROCESSING` y despacho opcional de alertas fiscales.
 - [x] **Inversión Red-Green y 4 Quality Gates:** Mutación determinista demostrada, 104 pruebas aprobadas (100% verde), 85.61% de cobertura real en SQLite `:memory:`, 0 errores Ruff, 0 errores Mypy y 0 vulnerabilidades Bandit.
+
+---
+
+### ✅ Fase 13: Frontend Enterprise Next.js 15, React 19 & Centro de Control Financiero en Tiempo Real (COMPLETADA)
+- [x] **Extensiones Backend FastAPI:** Implementar esquemas Pydantic v2 en `schemas.py` y endpoints enriquecidos en `api.py` (`GET /api/v1/ledger`, `GET /api/v1/dlq/events`, `POST /api/v1/dlq/replay/{id}`, `POST /api/v1/dlq/replay-all`, `GET /api/v1/telemetry/live`).
+- [x] **Scaffolding Next.js 15 & BFF Proxy Seguro:** Configurar aplicación Next.js 15 (App Router), React 19, TypeScript estricto, Tailwind CSS y Route Handler `/api/proxy/[...path]` inyectando de forma segura `CAJACLARAD_API_KEY` en el servidor Node.js sin exposición al cliente.
+- [x] **Arquitectura TanStack Query v5:** Factoría jerárquica de claves `queryKeys`, aislamiento de `QueryClient` por petición en SSR (anti-fuga de datos cruzados) y mutaciones pesimistas para operaciones de DLQ.
+- [x] **Módulos UI Enterprise:** Implementar `HeroKPISection` (telemetría y lag Litestream), `FiscalLedgerTable` (data grid con filtros multidimensionales, badges SPOT y visor seguro UBL 2.1 sanitizado), `DLQManagementConsole` (consola operativa de Dead Letter Queue con visor JSON y confirmación modal) y `ReportsExportHub` (descarga autenticada de SIRE RCE y CSV).
+- [x] **Invariantes Financieros y Pre-Flight Quality Gates:** Cero floats (cálculos en Decimal estricto y formateo bancario `Intl.NumberFormat`), 109 pruebas de backend en verde (85.55% cobertura en SQLite `:memory:` real), 7 pruebas de frontend Vitest en verde, build de producción Next.js 15 limpio y cero errores Ruff/Mypy/Bandit.
+

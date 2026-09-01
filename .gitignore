@@ -12,3 +12,6 @@ __pycache__/
 htmlcov/
 .coverage
 dist/
+*.tmp
+frontend/node_modules/
+frontend/.next/

@@ -152,3 +152,94 @@ class OutboxEventResponse(BaseModel):
     error_detail: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class InvoiceListItem(BaseModel):
+    """Item resumido para tabla y data grid de comprobantes."""
+
+    id: int
+    message_id: str
+    mailbox_account: str
+    sender_email: str
+    received_date: datetime
+    document_type: str | None = None
+    issuer_id: str | None = None
+    issuer_name: str | None = None
+    invoice_number: str | None = None
+    issue_date: datetime | None = None
+    currency: str | None = None
+    subtotal: str | None = None
+    tax_amount: str | None = None
+    total_amount: str | None = None
+    detraction_amount: str | None = None
+    detraction_rate: str | None = None
+    cdr_status: str | None = None
+    attachment_filename: str | None = None
+    attachment_hash: str | None = None
+    status: str
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class LedgerSummary(BaseModel):
+    """Resumen contable agregado con exactitud Decimal."""
+
+    total_subtotal_pen: str
+    total_tax_pen: str
+    total_amount_pen: str
+    total_detractions_pen: str
+    total_amount_usd: str
+
+
+class PaginationMeta(BaseModel):
+    """Metadatos de paginación."""
+
+    total_records: int
+    current_page: int
+    page_size: int
+    total_pages: int
+    has_next: bool
+    has_prev: bool
+
+
+class LedgerPaginationResponse(BaseModel):
+    """Respuesta paginada del libro contable con resumen."""
+
+    items: list[InvoiceListItem]
+    pagination: PaginationMeta
+    summary: LedgerSummary
+
+
+class DLQEventListResponse(BaseModel):
+    """Respuesta paginada de eventos en Outbox / Dead Letter Queue."""
+
+    events: list[OutboxEventResponse]
+    total_dead_letters: int
+    total_pending: int
+
+
+class DLQReplayResponse(BaseModel):
+    """Respuesta de re-encolado individual de un evento DLQ."""
+
+    status: str
+    event_id: int
+    new_status: str
+
+
+class DLQBatchReplayResponse(BaseModel):
+    """Respuesta de re-encolado masivo de eventos DLQ."""
+
+    status: str
+    replayed_count: int
+
+
+class LiveTelemetryResponse(BaseModel):
+    """Telemetría y métricas operacionales consolidadas en tiempo real."""
+
+    timestamp: str
+    process: dict[str, Any]
+    invoices: dict[str, Any]
+    outbox_dlq: dict[str, Any]
+    replication: dict[str, Any]
+    mailboxes: list[dict[str, Any]]

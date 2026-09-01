@@ -30,10 +30,14 @@ def memory_db_session():
 @patch("caja_clara.main.os.replace")
 def test_write_status_file(mock_replace, mock_config):
     """Test metrics are written atomically to status.json."""
-    mock_config.db_path = "dummy.db"
-    write_status_file()
-    mock_replace.assert_called_once()
-    assert os.path.exists("status.json.tmp") or os.path.exists("/var/lib/cajaclarad/status.json.tmp")
+    mock_config.db_path = "cajaclarad.db"
+    try:
+        write_status_file()
+        mock_replace.assert_called_once()
+        assert os.path.exists("status.json.tmp") or os.path.exists("/var/lib/cajaclarad/status.json.tmp")
+    finally:
+        if os.path.exists("status.json.tmp"):
+            os.remove("status.json.tmp")
 
 
 def test_handle_signal():

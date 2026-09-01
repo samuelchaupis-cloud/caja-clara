@@ -24,3 +24,20 @@
 4. **Saneamiento de Tests (Iron Law of Verification):**
    - Eliminación de `MagicMock` para la base de datos en `test_main.py`, reemplazado por SQLite `:memory:` real.
    - Tests de mutación y pruebas unitarias exhaustivas para UBL, ZIP, CDR y reportes.
+
+---
+
+# Findings: Fase 13 — Frontend Enterprise Next.js 15, React 19, BFF & Centro de Control Financiero
+
+## 1. Arquitectura de Seguridad BFF (Backend-For-Frontend)
+- **Problema de Fuga de Credenciales:** Exponer `CAJACLARAD_API_KEY` directamente en el navegador del cliente mediante cabeceras HTTP en peticiones AJAX filtraría secretos en herramientas de desarrollador y scripts de terceros.
+- **Solución Implementada:** Se diseñó un Route Handler seguro en Next.js (`frontend/app/api/proxy/[...path]/route.ts`) que intercepta las peticiones desde el cliente web y añade la cabecera `X-API-Key` exclusivamente en el servidor Node.js/Edge. El navegador web nunca recibe ni conoce la clave administrativa.
+
+## 2. Invariante de Precisión Bancaria y Redondeo (The Iron Law)
+- **Riesgo de Punto Flotante IEEE-754:** Operaciones matemáticas con `Number` en JavaScript causan distorsiones de céntimos en sumas de subtotales, IGV y detracciones SPOT.
+- **Solución Implementada:** Todos los montos fiscales viajan estrictamente como cadenas de texto formateadas (`string` con 2 decimales) desde FastAPI. En el frontend, se formatean mediante la biblioteca `Decimal.js` y `Intl.NumberFormat('es-PE')`, preservando exactitud contable absoluta sin conversiones implícitas a float.
+
+## 3. Aislamiento de Estado en SSR con TanStack Query v5
+- **Riesgo de Fuga de Cache entre Clientes:** Usar un singleton de `QueryClient` en el servidor ocasionaría que peticiones de distintos usuarios compartan memoria de caché en Node.js.
+- **Solución Implementada:** Se configuró una factoría `getQueryClient()` que retorna una instancia nueva y aislada de `QueryClient` en cada petición del servidor, garantizando seguridad multi-inquilino.
+
